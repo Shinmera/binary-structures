@@ -118,6 +118,10 @@
      ,@(loop for backend in *io-backends*
              collect `(define-io-backend-functions ,backend ,io-type))))
 
+(defmacro define-io-alias (name expansion)
+  `(define-io-type-parser ,name ()
+     (parse-io-type ',expansion)))
+
 (defclass top-type (io-type) ())
 
 (defmethod lisp-type ((type top-type)) T)
@@ -266,8 +270,16 @@
                                      (number `(= ,value ,test))
                                      (character `(char= ,value ,test))
                                      (string `(string= ,value ,test))
-                                     (vector `(equal ,value ,test)))
-                                   `',form))))))
+                                     (vector `(equalp ,value ,test)))
+                                   (etypecase form
+                                     (cons
+                                      (if (eql 'quote (car form))
+                                          form
+                                          (read-form backend form)))
+                                     ((or number character array keyword (eql T) (eql NIL))
+                                      form)
+                                     (symbol
+                                      (read-form backend form)))))))))
 
 (defmethod write-form ((backend io-backend) (type io-case) value)
   `(cond ,@(loop for (form test) in (cases type)
@@ -275,8 +287,20 @@
                                  (number `(= ,value ,test))
                                  (character `(char= ,value ,test))
                                  (string `(string= ,value ,test))
-                                 (vector `(equal ,value ,test)))
-                               (write-form backend (value-type type) form)))))
+                                 (vector `(equalp ,value ,test))
+                                 ((or keyword (eql T) (eql NIL)) `(eq ,value ,test))
+                                 (cons
+                                  (if (eql 'quote (car form))
+                                      `(eq ,value ,test)
+                                      `(typep ,value ',(lisp-type test))))
+                                 (symbol `(typep ,value ',(lisp-type test))))
+                               (write-form backend (value-type type) form)
+                               (typecase test
+                                 ((and symbol (not (or keyword (eql T) (eql NIL))))
+                                  (write-form backend test value))
+                                 (cons
+                                  (unless (eql 'quote (car form))
+                                    (write-form backend test value))))))))
 
 (defmethod lisp-type ((type io-case)) T)
 (defmethod default-value ((type io-case)) NIL)
@@ -330,15 +354,42 @@
   `(slot ,(name type)))
 
 (defmethod write-form ((backend io-backend) (type io-structure-slot) value-variable)
-  )
+  ())
 
 (defclass io-structure-magic (io-structure-slot)
   ((value-type :initform NIL)
    (name :initform NIL)
-   (constant :initarg :constant :accessor constant)))
+   (default-value :initarg :default-value :initform NIL :accessor default-value)))
+
+(defmethod shared-initialize :after ((type io-structure-magic) slots &key (default-value NIL default-value-p))
+  (when default-value-p (setf (default-value type) default-value)))
 
 (define-print-object-method io-structure-magic
-  "~s" constant)
+  "~s" (or (default-value io-structure-magic) (value-type io-structure-magic)))
+
+(defmethod (setf default-value) ((value string) (type io-structure-magic))
+  (setf (default-value type) (map '(simple-array (unsigned-byte 8) (*)) #'char-code value)))
+
+(defmethod read-form ((backend io-backend) (type io-structure-magic))
+  (if (value-type type)
+      `(let ((value ,(read-form backend (value-type type))))
+         (declare (ignorable value))
+         ,(when (default-value type)
+            `(assert (equalp value ,(default-value type)))))
+      `(assert (and ,@(loop for value across (default-value type)
+                            collect `(= ,value ,(read-form backend 'uint8))))
+               () "Check for magic value failed, expected~{~%  ~{~2,'0X ~c~}~}"
+               ',(loop for value across (default-value type)
+                       collect (list value (code-char value))))))
+
+(defmethod write-form ((backend io-backend) (type io-structure-magic) value-variable)
+  (cond ((null (value-type type))
+         `(progn ,@(loop for value across (default-value type)
+                         collect (write-form backend 'uint8 value))))
+        ((null (default-value type))
+         (write-form backend (value-type type) (default-value (value-type type))))
+        (T
+         (write-form backend (value-type type) (default-value type)))))
 
 (defmethod read-form ((backend io-backend) (type io-structure))
   (let ((value (gensym "VALUE"))
@@ -360,7 +411,7 @@
                   (list (intern* ',(lisp-type type) '- name) ',value)))
        ,@(loop for slot in (slots type)
                collect (if (typep slot 'io-structure-magic)
-                           (write-form backend (value-type slot) value-variable)
+                           (write-form backend slot value-variable)
                            `(let ((,value (,(intern* (lisp-type type) '- (name slot)) ,value-variable)))
                               ,(write-form backend (value-type slot) value)))))))
 
@@ -379,9 +430,14 @@
                        (unless (numberp size)
                          (setf size 0))
                        (setf total-offset (+ offset size pad)))))
-                  (vector
+                  (symbol
                    (prog1 (make-instance 'io-structure-magic
-                                         :constant slot
+                                         :value-type slot
+                                         :offset total-offset)
+                     (incf total-offset (octet-size slot))))
+                  (T
+                   (prog1 (make-instance 'io-structure-magic
+                                         :default-value slot
                                          :octet-size (length slot)
                                          :offset total-offset)
                      (incf total-offset (length slot)))))))
