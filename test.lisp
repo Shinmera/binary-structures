@@ -107,7 +107,27 @@
             (56 bitmapv3infoheader)
             (64 os22xbitmapheader)
             (108 bitmapv4header)
-            (124 bitmapv5header))))
+            (124 bitmapv5header)))
+  (bit-masks (typecase (slot header)
+               (bitmapinfoheader
+                (case (slot header compression)
+                  (:bitfields)
+                  (:alpha-bitfields)))
+               (T NIL)))
+  (color-table (typecase (slot header)
+                 (bitmapcoreheader
+                  (vector uint8 (* 3 (expt 2 (slot header bits/pixel)))))
+                 (bitmapinfoheader
+                  (vector uint8 (* 4 (slot header palette-size))))
+                 (T NIL)))
+  (pixels (vector uint8 (slot header image-size))
+          :offset (slot bitmap-offset)))
+
+;;;; TODO:
+;; slot descending
+;; dynamic offset
+;; typecase
+;; math expressions (* / - + ash expt)
 
 (define-io-functions bmp)
 
