@@ -6,43 +6,6 @@
 
 (in-package #:org.shirakumo.binary-structures)
 
-(define-io-structure archive-metadata-entry
-  (mod-time uint64)
-  (checksum uint32)
-  (mime-type (string uint8))
-  (path (string uint16)))
-
-(define-io-functions archive-metadata-entry)
-
-(define-io-structure archive
-  (count uint64)
-  (metadata-size uint64)
-  (entry-offsets (vector uint64 (slot-value count)))
-  (metadata (vector archive-metadata-entry (slot-value count)))
-  (file-offsets (vector uint64 (slot-value count)))
-  (files (vector (vector uint8 uint64) (slot-value count))))
-
-(define-io-functions archive)
-
-(define-io-structure audio
-  (samplerate uint32)
-  (channels uint8)
-  (format 
-   (case uint8
-     (#x01 'sint8)
-     (#x02 'sint16)
-     (#x04 'sint32)
-     (#x08 'sint64)
-     (#x11 'uint8)
-     (#x12 'uint16)
-     (#x14 'uint32)
-     (#x18 'uint64)
-     (#x24 'float32)
-     (#x28 'float64)))
-  (samples (vector (slot-value format) *)))
-
-(define-io-backend-functions io-stream audio)
-
 (define-io-structure bitmapcoreheader
   (width uint16)
   (height uint16)
@@ -74,6 +37,38 @@
   (palette-size uint32)
   (important-color-count uint32))
 
+(define-io-structure bitmapv2infoheader
+  (:include bitmapinfoheader)
+  (red-mask uint32)
+  (green-mask uint32)
+  (blue-mask uint32))
+
+(define-io-structure bitmapv3infoheader
+  (:include bitmapv2infoheader)
+  (alpha-mask uint32))
+
+(define-io-structure xyz
+  (x :uint32) ; FXPT2DOT30, 2 bits int, 30 bits fractional.
+  (y :uint32)
+  (z :uint32))
+
+(define-io-structure bitmapv4infoheader
+  (:include bitmapv3infoheader)
+  (cs-type uint32)
+  (red-endpoint xyz)
+  (green-endpoint xyz)
+  (blue-endpoint xyz)
+  (red-gamma uint32)
+  (green-gamma uint32)
+  (blue-gamma uint32))
+
+(define-io-structure bitmapv5infoheader
+  (:include bitmapv4infoheader)
+  (intent uint32)
+  (profile-data uint32)
+  (profile-size uint32)
+  uint32)
+
 (define-io-alias halftoning-algorithm
   (case uint16
     (0 NIL)
@@ -82,7 +77,7 @@
     (3 :super-circle)))
 
 (define-io-structure os22xbitmapheader
-  (header bitmapinfoheader)
+  (:include bitmapinfoheader)
   (resolution-unit uint16)
   uint16
   (origin uint16)
@@ -108,11 +103,11 @@
             (12 bitmapcoreheader)
             (16 os22xbitmapheader/short)
             (40 bitmapinfoheader)
-            #++(52 bitmapv2infoheader)
-            #++(56 bitmapv3infoheader)
+            (52 bitmapv2infoheader)
+            (56 bitmapv3infoheader)
             (64 os22xbitmapheader)
-            #++(108 bitmapv4header)
-            #++(124 bitmapv5header))))
+            (108 bitmapv4header)
+            (124 bitmapv5header))))
 
 (define-io-functions bmp)
 
