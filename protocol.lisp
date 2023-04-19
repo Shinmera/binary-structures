@@ -71,11 +71,14 @@
 
 (defmethod seek-form :around ((backend io-backend) offset)
   (let ((current (offset backend)))
-    (prog1 (if (unspecific-p offset current)
-               (call-next-method)
-               (let ((diff (- offset current)))
-                 (unless (= 0 diff)
-                   (call-next-method))))
+    (prog1 (cond ((eql '* offset)
+                  NIL)
+                 ((unspecific-p offset current)
+                  (call-next-method))
+                 (T
+                  (let ((diff (- offset current)))
+                    (unless (= 0 diff)
+                      (call-next-method)))))
       (setf (offset backend) offset))))
 
 (defun io-type (name &optional (errorp T))
@@ -211,15 +214,9 @@
   `(let ((vector (make-array ,(read-form backend (element-count type))
                              :element-type ',(lisp-type (element-type type)))))
      (dotimes (i (length vector) vector)
+       ,@(when (element-offset type)
+           (list (seek-form backend (element-offset type))))
        (setf (aref vector i) ,(read-form backend (element-type type))))))
-
-(defmethod write-form :around ((backend io-backend) (type io-vector) value-variable)
-  ;; If the element-count was an immediate type, emit it.
-  (if (io-type (element-count type) NIL)
-      `(progn (let ((value (length ,value-variable)))
-                ,(write-form backend (element-count type) 'value))
-              ,(call-next-method))
-      (call-next-method)))
 
 (defmethod write-form ((backend io-backend) (type io-vector) value-variable)
   (let ((element (gensym "ELEMENT")))
@@ -235,7 +232,12 @@
 
 (defmethod write-form :around ((backend io-backend) (type io-vector) value-variable)
   (let ((offset (offset backend)))
-    (prog1 (call-next-method)
+    (prog1 (if (io-type (element-count type) NIL)
+               ;; If the element-count was an immediate type, emit it.
+               `(progn (let ((value (length ,value-variable)))
+                         ,(write-form backend (element-count type) 'value))
+                       ,(call-next-method))
+               (call-next-method))
       (setf (offset backend) (or (unspecific-p offset (octet-size type))
                                  (+ offset (octet-size type)))))))
 
@@ -368,7 +370,7 @@
 
 (defmethod lisp-type ((type io-type)) T)
 (defmethod default-value ((type io-type)) NIL)
-(defmethod octet-size ((type io-typecase)) '*)
+(defmethod octet-size ((type io-type)) '*)
 
 (defmacro define-io-value-form (name &optional (function name))
   `(define-io-type-parser ,name (&rest args)
@@ -387,24 +389,20 @@
   ((cases :initarg :cases :accessor cases)))
 
 (defmethod read-form ((backend io-backend) (type io-typecase))
-  (let ((value (gensym "VALUE")))
-    `(let ((,value ,(read-form backend (form type))))
-       (typecase ,value
-         ,@(loop for (type form) in (cases type)
-                 collect (list type
-                               (if (constantp form)
-                                   form
-                                   (read-form backend form))))))))
+  `(typecase ,(read-form backend (form type))
+     ,@(loop for (type form) in (cases type)
+             collect (list type
+                           (if (constantp form)
+                               form
+                               (read-form backend form))))))
 
 (defmethod write-form ((backend io-backend) (type io-typecase) value)
-  (let ((value (gensym "VALUE")))
-    `(let ((,value ,(read-form backend (form type))))
-       (typecase ,value
-         ,@(loop for (type form) in (cases type)
-                 collect (list type
-                               (if (constantp form)
-                                   form
-                                   (write-form backend form value))))))))
+  `(typecase ,(read-form backend (form type))
+     ,@(loop for (type form) in (cases type)
+             collect (list type
+                           (if (constantp form)
+                               form
+                               (write-form backend form value))))))
 
 (defmethod octet-size ((type io-typecase))
   (let ((add NIL))
