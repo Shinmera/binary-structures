@@ -114,10 +114,10 @@
                   ((eql :bitfields) rgb)
                   ((eql :alpha-bitfields) rgba)))))
   (color-table (typecase (slot header)
-                 (bitmapcoreheader
-                  (vector uint8 (* 3 (expt 2 (slot header bits/pixel)))))
                  (bitmapinfoheader
                   (vector uint8 (* 4 (slot header palette-size))))
+                 (bitmapcoreheader
+                  (vector uint8 (* 3 (expt 2 (slot header bits/pixel)))))
                  (T NIL)))
   (pixels (vector uint8 (slot header image-size))
           :offset (slot bitmap-offset)))
