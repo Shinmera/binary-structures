@@ -372,18 +372,10 @@
 (defmethod default-value ((type io-type)) NIL)
 (defmethod octet-size ((type io-type)) '*)
 
-(defmacro define-io-value-form (name &optional (function name))
-  `(define-io-type-parser ,name (&rest args)
-     (make-instance 'io-value :form (list* ',function args))))
-
-(define-io-value-form slot-value slot)
-(define-io-value-form slot)
-(define-io-value-form +)
-(define-io-value-form -)
-(define-io-value-form *)
-(define-io-value-form /)
-(define-io-value-form expt)
-(define-io-value-form ash)
+(defmethod parse-io-type ((type cons) &rest args)
+  (handler-case (apply #'parse-io-type (car type) (append (cdr type) args))
+    (no-such-io-type ()
+      (make-instance 'io-value :form (append type args)))))
 
 (defclass io-typecase (io-value)
   ((cases :initarg :cases :accessor cases)))
@@ -417,6 +409,8 @@
 
 (define-io-type-parser typecase (form &rest cases)
   (make-instance 'io-typecase :form form :cases cases))
+
+(defvar *io-structure-base* 0)
 
 (defclass io-structure (io-type)
   ((value-type :initarg :value-type :accessor value-type)
@@ -456,8 +450,6 @@
         :constructor (constructor type)
         :slots (slots type)))
 
-(defvar *io-structure*)
-
 (defmethod find-slot (name (structure io-structure))
   (or (find name (slots structure) :key #'name)
       (error "No slot with name ~s found on ~s" name structure)))
@@ -479,6 +471,11 @@
 
 (defmethod lisp-type ((slot io-structure-slot))
   (lisp-type (value-type slot)))
+
+(defmethod offset :around ((slot io-structure-slot))
+  (let ((value (call-next-method)))
+    (or (unspecific-p value *io-structure-base*)
+        (+ *io-structure-base* value))))
 
 (defclass io-structure-magic (io-structure-slot)
   ((value-type :initform NIL)
@@ -517,8 +514,7 @@
          (write-form backend (value-type type) (default-value type)))))
 
 (defmethod read-form ((backend io-backend) (type io-structure))
-  (let ((value (gensym "VALUE"))
-        (*io-structure* type))
+  (let ((value (gensym "VALUE")))
     `(let ((,value ,(default-value type)))
        (macrolet ((slot (name &rest descendants)
                     (let ((value (list (intern* ',(lisp-type type) '- name) ',value)))
@@ -526,6 +522,7 @@
                         (setf value `(slot-value ,value ',name))))))
          ,@(loop for slot in (slots type)
                  for align = (seek-form backend (offset slot))
+                 for *io-structure-base* = (offset slot)
                  when align collect align
                  collect (if (typep slot 'io-structure-magic)
                              (read-form backend slot)
@@ -534,14 +531,14 @@
        ,value)))
 
 (defmethod write-form ((backend io-backend) (type io-structure) value-variable)
-  (let ((value (gensym "VALUE"))
-        (*io-structure* type))
+  (let ((value (gensym "VALUE")))
     `(macrolet ((slot (name &rest descendants)
                   (let ((value (list (intern* ',(lisp-type type) '- name) ',value-variable)))
                     (dolist (name descendants value)
                       (setf value `(slot-value ,value ',name))))))
        ,@(loop for slot in (slots type)
                for align = (seek-form backend (offset slot))
+               for *io-structure-base* = (offset slot)
                when align collect align
                collect (if (typep slot 'io-structure-magic)
                            (write-form backend slot value-variable)

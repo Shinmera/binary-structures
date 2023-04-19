@@ -144,7 +144,18 @@
           (1 :ico)
           (2 :cur)))
   (count uint16)
-  (entries (vector ico-entry (slot-value count)))
-  (images (vector bmpcontent (slot-value count) (slot entries i offset))))
+  (entries (vector ico-entry (slot count)))
+  ;; FIXME:                                 v-- this won't resolve right --v
+  (images (vector bmpcontent (slot count) (slot (aref (slot entries) i) offset))))
 
 (define-io-functions ico)
+
+(define-io-structure a
+  (field uint8))
+
+(define-io-structure b
+  (count uint8)
+  (offsets (vector uint8 (slot count)))
+  (nest (vector a (slot count) (aref (slot offsets) i))))
+
+(define-io-backend-functions io-foreign-pointer b)
