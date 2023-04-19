@@ -476,6 +476,12 @@
 (define-print-object-method io-structure-slot
   "~a ~a" name value-type)
 
+(defmethod default-value ((slot io-structure-slot))
+  (default-value (value-type slot)))
+
+(defmethod lisp-type ((slot io-structure-slot))
+  (lisp-type (value-type slot)))
+
 (defclass io-structure-magic (io-structure-slot)
   ((value-type :initform NIL)
    (name :initform NIL)
@@ -583,17 +589,24 @@
 (defmacro define-io-structure (name &body slots)
   (let ((constructor (intern* 'make- name))
         (include (when (and (listp (first slots)) (eql :include (caar slots)))
-                   (pop slots))))
+                   (pop slots)))
+        (slotdefs ()))
     (handler-bind ((no-such-io-type #'continue))
+      (dolist (slot slots)
+        (when (consp slot)
+          (case (first slot)
+            (:include
+             (dolist (slot (slots (io-type (second slot))))
+               (push `(,(name slot) ,(default-value slot) :type ,(lisp-type slot))
+                     slotdefs)))
+            (T
+             (push `(,(first slot) ,(default-value (second slot)) :type ,(lisp-type (second slot))) 
+                   slotdefs)))))
       `(progn
          (defstruct (,name
                      (:constructor ,constructor)
                      ,@(when include `((:include ,(second include)))))
-           ,@(loop for slot in slots
-                   when (consp slot)
-                   collect `(,(first slot)
-                             ,(default-value (second slot))
-                             :type ,(lisp-type (second slot)))))
+           ,@(nreverse slotdefs))
 
          (define-io-type (io-structure ,name)
            :name ',name
