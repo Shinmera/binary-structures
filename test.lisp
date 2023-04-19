@@ -139,7 +139,7 @@
   (offset uint32))
 
 (define-io-structure ico
-  uint16
+  #(0 0)
   (type (case uint16
           (1 :ico)
           (2 :cur)))

@@ -582,6 +582,7 @@
                                   :offset total-offset)))
           (T
            (finish (make-instance 'io-structure-magic
+                                  :name (princ-to-string slot)
                                   :default-value slot
                                   :octet-size (length slot)
                                   :offset total-offset))))))))
