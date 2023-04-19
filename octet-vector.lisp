@@ -82,3 +82,9 @@
       `(progn (replace vector ,value-variable :start1 index)
               (incf index (length ,value-variable)))
       (call-next-method)))
+
+(defmethod index-form ((backend io-octet-vector))
+  'index)
+
+(defmethod seek-form ((backend io-octet-vector) offset)
+  `(setf index ,offset))

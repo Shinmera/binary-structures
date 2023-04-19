@@ -71,3 +71,18 @@
   (if (eql 1 (octet-size (element-type type)))
       `(write-sequence ,value-variable stream)
       (call-next-method)))
+
+(defmethod index-form ((backend io-stream))
+  `(file-position stream))
+
+(defmethod seek-form ((backend io-stream) offset)
+  `(let ((diff (- ,offset ,(index-form backend))))
+     (cond ((= 0 diff))
+           ((< 8 diff)
+            (let ((scratch (make-array diff :element-type '(unsigned-byte 8))))
+              (declare (dynamic-extent scratch))
+              (read-sequence scratch stream)))
+           ((< 0 diff)
+            (loop repeat diff do (read-byte stream)))
+           (T
+            (file-position stream ,offset)))))

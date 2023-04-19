@@ -8,42 +8,61 @@
 
 (define-io-backend io-foreign-pointer)
 
+(defmacro read-mem (pointer type &optional (octets `(cffi:foreign-type-size ,type)))
+  `(prog1 (cffi:mem-ref ,pointer ,type)
+    (cffi:incf-pointer ,pointer ,octets)))
+
+(defmacro write-mem (value pointer type &optional (octets `(cffi:foreign-type-size ,type)))
+  `(prog1 (setf (cffi:mem-ref ,pointer ,type) ,value)
+     (cffi:incf-pointer ,pointer ,octets)))
+
 (defmethod read-defun ((backend io-foreign-pointer) type name)
   `(defun ,name (pointer &key size)
      (check-type size (integer 0))
-     ,(read-form backend type)))
+     (let ((start pointer))
+       ,(read-form backend type))))
 
 (defmethod write-defun ((backend io-foreign-pointer) type name)
   `(defun ,name (value pointer &key size)
      (check-type size (integer 0))
-     ,(write-form backend type 'value)))
+     (let ((start pointer))
+       ,(write-form backend type 'value))))
 
 (defmethod read-form ((backend io-foreign-pointer) (type io-integer))
-  `(prog1 (cffi:mem-ref pointer ,(find-symbol* 'keyword (if (signed-p type) 'u '||) 'int
-                                               (* 8 (octet-size type))))
-     (cffi:incf-pointer pointer ,(octet-size type))))
+  `(read-mem pointer
+       ,(find-symbol* 'keyword (if (signed-p type) 'u '||) 'int
+                      (* 8 (octet-size type)))
+       ,(octet-size type)))
 
 (defmethod write-form ((backend io-foreign-pointer) (type io-integer) value-variable)
-  `(progn
-     (setf (cffi:mem-ref pointer ,(find-symbol* 'keyword (if (signed-p type) 'u '||) 'int
-                                                (* 8 (octet-size type))))
-           ,value-variable)
-     (cffi:incf-pointer pointer ,(octet-size type))))
+  `(write-mem ,value-variable
+              pointer
+              ,(find-symbol* 'keyword (if (signed-p type) 'u '||) 'int
+                             (* 8 (octet-size type)))
+              ,(octet-size type)))
 
 (defmethod read-form ((backend io-foreign-pointer) (type io-float))
-  `(prog1 (cffi:mem-ref pointer ,(ecase (octet-size type)
-                                   (2 :half-float)
-                                   (4 :float)
-                                   (8 :double)
-                                   (16 :long-double)))
-     (cffi:incf-pointer pointer ,(octet-size type))))
+  `(read-mem pointer 
+       ,(ecase (octet-size type)
+          (2 :half-float)
+          (4 :float)
+          (8 :double)
+          (16 :long-double))
+       ,(octet-size type)))
 
 (defmethod write-form ((backend io-foreign-pointer) (type io-float) value-variable)
-  `(progn
-     (setf (cffi:mem-ref pointer ,(ecase (octet-size type)
-                                    (2 :half-float)
-                                    (4 :float)
-                                    (8 :double)
-                                    (16 :long-double)))
-           ,value-variable)
-     (cffi:incf-pointer pointer ,(octet-size type))))
+  `(write-pointer ,value-variable
+                  pointer
+                  ,(ecase (octet-size type)
+                     (2 :half-float)
+                     (4 :float)
+                     (8 :double)
+                     (16 :long-double))
+                  ,(octet-size type)))
+
+(defmethod index-form ((backend io-foreign-pointer))
+  `(- (cffi:pointer-address pointer)
+      (cffi:pointer-address start)))
+
+(defmethod seek-form ((backend io-foreign-pointer) offset)
+  `(setf pointer (cffi:inc-pointer start ,offset)))

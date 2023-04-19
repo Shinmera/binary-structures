@@ -13,13 +13,17 @@
 (defvar *io-backends* ())
 (defvar *io-types* (make-hash-table :test 'eql))
 
-(defclass io-backend () ())
+(defclass io-backend () 
+  ((offset :initarg :offset :initform 0 :accessor offset)))
+
 (defclass io-type () ())
 
 (defgeneric read-defun (backend io-type name))
 (defgeneric write-defun (backend io-type name))
 (defgeneric read-form (backend io-type))
 (defgeneric write-form (backend io-type value-variable))
+(defgeneric index-form (backend))
+(defgeneric seek-form (backend offset))
 (defgeneric lisp-type (io-type))
 (defgeneric default-value (io-type))
 (defgeneric octet-size (io-type))
@@ -59,6 +63,20 @@
 
 (defmethod octet-size (type)
   (octet-size (parse-io-type type)))
+
+(defmethod index-form :around ((backend io-backend))
+  (if (unspecific-p (offset backend))
+      (call-next-method)
+      (offset backend)))
+
+(defmethod seek-form :around ((backend io-backend) offset)
+  (let ((current (offset backend)))
+    (prog1 (if (unspecific-p offset current)
+               (call-next-method)
+               (let ((diff (- offset current)))
+                 (unless (= 0 diff)
+                   (call-next-method))))
+      (setf (offset backend) offset))))
 
 (defun io-type (name &optional (errorp T))
   (or (when (typep name 'io-type) name)
@@ -127,6 +145,7 @@
 (defmethod lisp-type ((type top-type)) T)
 (defmethod default-value ((type top-type)) NIL)
 (defmethod initargs append ((type top-type)) ())
+(defmethod octet-size ((type top-type)) '*)
 
 (defclass numeric-type (io-type)
   ((octet-size :initarg :octet-size :accessor octet-size)
@@ -134,6 +153,14 @@
 
 (defmethod initargs append ((type numeric-type))
   (list :octet-size (octet-size type)))
+
+(defmethod read-form :after ((backend io-backend) (type numeric-type))
+  (setf (offset backend) (or (unspecific-p (offset backend) (octet-size type))
+                             (+ (offset backend) (octet-size type)))))
+
+(defmethod write-form :after ((backend io-backend) (type numeric-type) value-variable)
+  (setf (offset backend) (or (unspecific-p (offset backend) (octet-size type))
+                             (+ (offset backend) (octet-size type)))))
 
 (defclass io-integer (numeric-type)
   ((signed-p :initarg :signed-p :initform T :accessor signed-p)))
@@ -199,6 +226,18 @@
     `(dotimes (i (length ,value-variable))
        (let ((,element (aref ,value-variable i)))
          ,(write-form backend (element-type type) element)))))
+
+(defmethod read-form :around ((backend io-backend) (type io-vector))
+  (let ((offset (offset backend)))
+    (prog1 (call-next-method)
+      (setf (offset backend) (or (unspecific-p offset (octet-size type))
+                                 (+ offset (octet-size type)))))))
+
+(defmethod write-form :around ((backend io-backend) (type io-vector) value-variable)
+  (let ((offset (offset backend)))
+    (prog1 (call-next-method)
+      (setf (offset backend) (or (unspecific-p offset (octet-size type))
+                                 (+ offset (octet-size type)))))))
 
 (defmethod lisp-type ((type io-vector))
   `(simple-array ,(lisp-type (element-type type))
@@ -271,15 +310,9 @@
                                      (character `(char= ,value ,test))
                                      (string `(string= ,value ,test))
                                      (vector `(equalp ,value ,test)))
-                                   (etypecase form
-                                     (cons
-                                      (if (eql 'quote (car form))
-                                          form
-                                          (read-form backend form)))
-                                     ((or number character array keyword (eql T) (eql NIL))
-                                      form)
-                                     (symbol
-                                      (read-form backend form)))))))))
+                                   (if (constantp form)
+                                       form
+                                       (read-form backend form))))))))
 
 (defmethod write-form ((backend io-backend) (type io-case) value)
   `(cond ,@(loop for (form test) in (cases type)
@@ -305,19 +338,104 @@
 (defmethod lisp-type ((type io-case)) T)
 (defmethod default-value ((type io-case)) NIL)
 (defmethod octet-size ((type io-case))
-  (octet-size (value-type type)))
+  (let ((size (octet-size (value-type type)))
+        (add NIL))
+    (dolist (case (cases type))
+      (unless (constantp (second case))
+        (cond ((null add)
+               (setf add (octet-size (second case))))
+              ((not (eql add (octet-size (second case))))
+               (setf add '*)))))
+    (or (unspecific-p size add)
+        (+ size add))))
 
 (define-io-type-parser case (value-type &rest cases)
   (make-instance 'io-case :value-type value-type
                           :cases cases))
 
+(defclass io-value (io-type)
+  ((form :initarg :form :accessor form)))
+
+(defmethod read-form ((backend io-backend) (type io-value))
+  (form type))
+
+(defmethod write-form ((backend io-backend) (type io-value) value)
+  (form type))
+
+(defmethod lisp-type ((type io-type)) T)
+(defmethod default-value ((type io-type)) NIL)
+(defmethod octet-size ((type io-typecase)) '*)
+
+(defmacro define-io-value-form (name &optional (function name))
+  `(define-io-type-parser ,name (&rest args)
+     (make-instance 'io-value :form (list* ',function args))))
+
+(define-io-value-form slot-value slot)
+(define-io-value-form slot)
+(define-io-value-form +)
+(define-io-value-form -)
+(define-io-value-form *)
+(define-io-value-form /)
+(define-io-value-form expt)
+(define-io-value-form ash)
+
+(defclass io-typecase (io-value)
+  ((cases :initarg :cases :accessor cases)))
+
+(defmethod read-form ((backend io-backend) (type io-typecase))
+  (let ((value (gensym "VALUE")))
+    `(let ((,value ,(read-form backend (form type))))
+       (typecase ,value
+         ,@(loop for (type form) in (cases type)
+                 collect (list type
+                               (if (constantp form)
+                                   form
+                                   (read-form backend form))))))))
+
+(defmethod write-form ((backend io-backend) (type io-typecase) value)
+  (let ((value (gensym "VALUE")))
+    `(let ((,value ,(read-form backend (form type))))
+       (typecase ,value
+         ,@(loop for (type form) in (cases type)
+                 collect (list type
+                               (if (constantp form)
+                                   form
+                                   (write-form backend form value))))))))
+
+(defmethod octet-size ((type io-typecase))
+  (let ((add NIL))
+    (dolist (case (cases type))
+      (unless (constantp (second case))
+        (cond ((null add)
+               (setf add (octet-size (second case))))
+              ((not (eql add (octet-size (second case))))
+               (setf add '*)))))
+    (or (unspecific-p add)
+        add '*)))
+
+(define-io-type-parser typecase (form &rest cases)
+  (make-instance 'io-typecase :form form :cases cases))
+
 (defclass io-structure (io-type)
   ((value-type :initarg :value-type :accessor value-type)
    (constructor :initarg :constructor :accessor constructor)
-   (slots :initarg :slots :initform () :accessor slots)))
+   (slots :initarg :slots :initform () :accessor slots)
+   (name :initarg :name :initform NIL :accessor name)))
 
 (define-print-object-method io-structure
   "~a" value-type)
+
+(defmethod describe-object ((structure io-structure) stream)
+  (format stream "~a~%  [~s]~%~%"
+          (name structure) (type-of structure))
+  (format stream "ADDRESS  SIZE TYPE     NAME")
+  (loop for slot in (slots structure)
+        do (format stream "~%~:[        ~;~:*~8,'0x~] ~4a ~8a ~a"
+                   (unless (unspecific-p (offset slot))
+                     (offset slot))
+                   (octet-size slot)
+                   (truncate-text (princ-to-string (value-type slot)) 8)
+                   (or (name slot) "----"))))
 
 (defmethod lisp-type ((type io-structure))
   (value-type type))
@@ -338,8 +456,12 @@
 
 (defvar *io-structure*)
 
-(define-io-type-parser slot-value (slot)
-  (find slot (slots *io-structure*) :key #'name))
+(defmethod find-slot (name (structure io-structure))
+  (or (find name (slots structure) :key #'name)
+      (error "No slot with name ~s found on ~s" name structure)))
+
+(defmethod find-slot (name (type T))
+  (find-slot name (parse-io-type type)))
 
 (defclass io-structure-slot ()
   ((value-type :initarg :value-type :accessor value-type)
@@ -349,12 +471,6 @@
 
 (define-print-object-method io-structure-slot
   "~a ~a" name value-type)
-
-(defmethod read-form ((backend io-backend) (type io-structure-slot))
-  `(slot ,(name type)))
-
-(defmethod write-form ((backend io-backend) (type io-structure-slot) value-variable)
-  ())
 
 (defclass io-structure-magic (io-structure-slot)
   ((value-type :initform NIL)
@@ -371,16 +487,17 @@
   (setf (default-value type) (map '(simple-array (unsigned-byte 8) (*)) #'char-code value)))
 
 (defmethod read-form ((backend io-backend) (type io-structure-magic))
-  (if (value-type type)
-      `(let ((value ,(read-form backend (value-type type))))
-         (declare (ignorable value))
-         ,(when (default-value type)
-            `(assert (equalp value ,(default-value type)))))
-      `(assert (and ,@(loop for value across (default-value type)
-                            collect `(= ,value ,(read-form backend 'uint8))))
-               () "Check for magic value failed, expected~{~%  ~{~2,'0X ~c~}~}"
-               ',(loop for value across (default-value type)
-                       collect (list value (code-char value))))))
+  (cond ((null (value-type type))
+         `(assert (and ,@(loop for value across (default-value type)
+                               collect `(= ,value ,(read-form backend 'uint8))))
+                  () "Check for magic value failed, expected~{~%  ~{~2,'0X ~c~}~}"
+                  ',(loop for value across (default-value type)
+                          collect (list value (code-char value)))))
+        ((default-value type)
+         `(let ((value ,(read-form backend (value-type type))))
+            (assert (equalp value ,(default-value type)))))
+        (T
+         (read-form backend (value-type type)))))
 
 (defmethod write-form ((backend io-backend) (type io-structure-magic) value-variable)
   (cond ((null (value-type type))
@@ -395,9 +512,13 @@
   (let ((value (gensym "VALUE"))
         (*io-structure* type))
     `(let ((,value ,(default-value type)))
-       (macrolet ((slot (name)
-                    (list (intern* ',(lisp-type type) '- name) ',value)))
+       (macrolet ((slot (name &rest descendants)
+                    (let ((value (list (intern* ',(lisp-type type) '- name) ',value)))
+                      (dolist (name descendants value)
+                        (setf value `(slot-value ,value ',name))))))
          ,@(loop for slot in (slots type)
+                 for align = (seek-form backend (offset slot))
+                 when align collect align
                  collect (if (typep slot 'io-structure-magic)
                              (read-form backend slot)
                              `(setf (,(intern* (lisp-type type) '- (name slot)) ,value)
@@ -407,47 +528,63 @@
 (defmethod write-form ((backend io-backend) (type io-structure) value-variable)
   (let ((value (gensym "VALUE"))
         (*io-structure* type))
-    `(macrolet ((slot (name)
-                  (list (intern* ',(lisp-type type) '- name) ',value)))
+    `(macrolet ((slot (name &rest descendants)
+                  (let ((value (list (intern* ',(lisp-type type) '- name) ',value-variable)))
+                    (dolist (name descendants value)
+                      (setf value `(slot-value ,value ',name))))))
        ,@(loop for slot in (slots type)
+               for align = (seek-form backend (offset slot))
+               when align collect align
                collect (if (typep slot 'io-structure-magic)
                            (write-form backend slot value-variable)
                            `(let ((,value (,(intern* (lisp-type type) '- (name slot)) ,value-variable)))
                               ,(write-form backend (value-type slot) value)))))))
 
-(defun parse-io-structure-slots (slots)
-  (loop with total-offset = 0
-        for slot in slots
-        collect (etypecase slot
-                  (cons
-                   (destructuring-bind (name type &key (offset total-offset) (size (octet-size type)) (align 1) (pad 0)) slot
-                     (setf offset (* (ceiling offset align) align))
-                     (prog1 (make-instance 'io-structure-slot
-                                           :value-type type
-                                           :octet-size size
-                                           :offset offset
-                                           :name name)
-                       (unless (numberp size)
-                         (setf size 0))
-                       (setf total-offset (+ offset size pad)))))
-                  (symbol
-                   (prog1 (make-instance 'io-structure-magic
-                                         :value-type slot
-                                         :offset total-offset)
-                     (incf total-offset (octet-size slot))))
-                  (T
-                   (prog1 (make-instance 'io-structure-magic
-                                         :default-value slot
-                                         :octet-size (length slot)
-                                         :offset total-offset)
-                     (incf total-offset (length slot)))))))
+(defun parse-io-structure-slots (defs)
+  (let ((slots ())
+        (total-offset 0))
+    (flet ((finish (slot &optional (pad 0))
+             (let ((end (or (unspecific-p (octet-size slot) (offset slot))
+                            (+ (octet-size slot) (offset slot) pad))))
+               (setf total-offset (or (unspecific-p end total-offset)
+                                      (+ end total-offset)))
+               (push slot slots))))
+      (dolist (slot defs (nreverse slots))
+        (etypecase slot
+          (cons
+           (destructuring-bind (name type &key (offset total-offset) (size (octet-size type)) (align 1) (pad 0)) slot
+             (case name
+               (:include
+                (dolist (slot (slots (io-type type)))
+                  (finish slot)))
+               (T
+                (finish (make-instance 'io-structure-slot
+                                       :value-type type
+                                       :octet-size size
+                                       :offset (or (unspecific-p offset)
+                                                   (* (ceiling offset align) align))
+                                       :name name)
+                        pad)))))
+          (symbol
+           (finish (make-instance 'io-structure-magic
+                                  :value-type slot
+                                  :octet-size (octet-size slot)
+                                  :offset total-offset)))
+          (T
+           (finish (make-instance 'io-structure-magic
+                                  :default-value slot
+                                  :octet-size (length slot)
+                                  :offset total-offset))))))))
 
 (defmacro define-io-structure (name &body slots)
-  (let ((constructor (intern* 'make- name)))
+  (let ((constructor (intern* 'make- name))
+        (include (when (and (listp (first slots)) (eql :include (caar slots)))
+                   (pop slots))))
     (handler-bind ((no-such-io-type #'continue))
       `(progn
          (defstruct (,name
-                     (:constructor ,constructor))
+                     (:constructor ,constructor)
+                     ,@(when include `((:include ,(second include)))))
            ,@(loop for slot in slots
                    when (consp slot)
                    collect `(,(first slot)
@@ -455,6 +592,7 @@
                              :type ,(lisp-type (second slot)))))
 
          (define-io-type (io-structure ,name)
+           :name ',name
            :value-type ',name
            :constructor ',constructor
-           :slots (parse-io-structure-slots ',slots))))))
+           :slots (parse-io-structure-slots ',(if include (list* include slots) slots)))))))

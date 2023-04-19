@@ -19,5 +19,11 @@
        (format stream ,format ,@(loop for arg in args
                                       collect (if (listp arg) arg `(,arg ,type)))))))
 
+(defun truncate-text (text max-length)
+  (if (< max-length (length text))
+      (subseq text 0 max-length)
+      text))
+
 (defun unspecific-p (&rest things)
-  (find '* things))
+  (loop for thing in things
+        do (unless (numberp thing) (return thing))))

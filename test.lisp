@@ -6,6 +6,20 @@
 
 (in-package #:org.shirakumo.binary-structures)
 
+(define-io-structure rgb
+  (r uint32)
+  (g uint32)
+  (b uint32))
+
+(define-io-structure rgba
+  (:include rgb)
+  (a uint32))
+
+(define-io-structure xyz
+  (x sint32)             ; FXPT2DOT30, 2 bits int, 30 bits fractional.
+  (y sint32)
+  (z sint32))
+
 (define-io-structure bitmapcoreheader
   (width uint16)
   (height uint16)
@@ -25,12 +39,12 @@
     (12 :cmyk-rle8)
     (13 :cmyk-rle4)))
 
+(define-io-structure os22xbitmapheader/short
+  (:include bitmapcoreheader)
+  (compression bitmapcompression))
+
 (define-io-structure bitmapinfoheader
-  (width sint32)
-  (height sint32)
-  (planes uint16)
-  (bits/pixel uint16)
-  (compression bitmapcompression)
+  (:include os22xbitmapheader/short)
   (image-size uint32)
   (horizontal-resolution sint32)
   (vertical-resolution sint32)
@@ -39,18 +53,11 @@
 
 (define-io-structure bitmapv2infoheader
   (:include bitmapinfoheader)
-  (red-mask uint32)
-  (green-mask uint32)
-  (blue-mask uint32))
+  (mask rgb))
 
 (define-io-structure bitmapv3infoheader
-  (:include bitmapv2infoheader)
-  (alpha-mask uint32))
-
-(define-io-structure xyz
-  (x :uint32) ; FXPT2DOT30, 2 bits int, 30 bits fractional.
-  (y :uint32)
-  (z :uint32))
+  (:include bitmapinfoheader)
+  (maks rgba))
 
 (define-io-structure bitmapv4infoheader
   (:include bitmapv3infoheader)
@@ -58,9 +65,7 @@
   (red-endpoint xyz)
   (green-endpoint xyz)
   (blue-endpoint xyz)
-  (red-gamma uint32)
-  (green-gamma uint32)
-  (blue-gamma uint32))
+  (gamma rgb))
 
 (define-io-structure bitmapv5infoheader
   (:include bitmapv4infoheader)
@@ -87,13 +92,6 @@
   (color-encoding uint32)
   (identifier uint32))
 
-(define-io-structure os22xbitmapheader/short
-  (width sint32)
-  (height sint32)
-  (planes uint16)
-  (bits/pixel uint16)
-  (compression bitmapcompression))
-
 (define-io-structure bmp
   "BM"
   (size uint32)
@@ -106,14 +104,13 @@
             (52 bitmapv2infoheader)
             (56 bitmapv3infoheader)
             (64 os22xbitmapheader)
-            (108 bitmapv4header)
-            (124 bitmapv5header)))
+            (108 bitmapv4infoheader)
+            (124 bitmapv5infoheader)))
   (bit-masks (typecase (slot header)
                (bitmapinfoheader
-                (case (slot header compression)
-                  (:bitfields)
-                  (:alpha-bitfields)))
-               (T NIL)))
+                (typecase (slot header compression)
+                  ((eql :bitfields) rgb)
+                  ((eql :alpha-bitfields) rgba)))))
   (color-table (typecase (slot header)
                  (bitmapcoreheader
                   (vector uint8 (* 3 (expt 2 (slot header bits/pixel)))))
@@ -122,12 +119,6 @@
                  (T NIL)))
   (pixels (vector uint8 (slot header image-size))
           :offset (slot bitmap-offset)))
-
-;;;; TODO:
-;; slot descending
-;; dynamic offset
-;; typecase
-;; math expressions (* / - + ash expt)
 
 (define-io-functions bmp)
 
