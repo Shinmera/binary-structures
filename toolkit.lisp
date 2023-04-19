@@ -26,4 +26,5 @@
 
 (defun unspecific-p (&rest things)
   (loop for thing in things
-        do (unless (numberp thing) (return thing))))
+        do (cond ((null thing) (return '*))
+                 ((not (numberp thing)) (return thing)))))

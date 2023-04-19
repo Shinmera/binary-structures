@@ -312,7 +312,9 @@
                                      (vector `(equalp ,value ,test)))
                                    (if (constantp form)
                                        form
-                                       (read-form backend form))))))))
+                                       (read-form backend form))))
+             (T (error "The value~%  ~a~%is not among the set of known values:~%~a"
+                       ,value ',(mapcar #'first (cases type))))))))
 
 (defmethod write-form ((backend io-backend) (type io-case) value)
   `(cond ,@(loop for (form test) in (cases type)
@@ -333,7 +335,9 @@
                                   (write-form backend test value))
                                  (cons
                                   (unless (eql 'quote (car form))
-                                    (write-form backend test value))))))))
+                                    (write-form backend test value))))))
+         (T (error "The value~%  ~a~%is not among the set of accepted values:~%~a"
+                   ,value ',(mapcar #'first (cases type))))))
 
 (defmethod lisp-type ((type io-case)) T)
 (defmethod default-value ((type io-case)) NIL)

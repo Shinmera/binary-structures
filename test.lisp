@@ -92,11 +92,13 @@
   (color-encoding uint32)
   (identifier uint32))
 
-(define-io-structure bmp
+(define-io-structure bmpfileheader
   "BM"
   (size uint32)
   uint16 uint16
-  (bitmap-offset uint32)
+  (bitmap-offset uint32))
+
+(define-io-structure bmpcontent
   (header (case uint32
             (12 bitmapcoreheader)
             (16 os22xbitmapheader/short)
@@ -120,6 +122,10 @@
   (pixels (vector uint8 (slot header image-size))
           :offset (slot bitmap-offset)))
 
+(define-io-structure bmp
+  (:include bmpfileheader)
+  (:include bmpcontent))
+
 (define-io-functions bmp)
 
 (define-io-structure ico-entry
@@ -139,4 +145,6 @@
           (2 :cur)))
   (count uint16)
   (entries (vector ico-entry (slot-value count)))
-  )
+  (images (vector bmpcontent (slot-value count) (slot entries i offset))))
+
+(define-io-functions ico)
