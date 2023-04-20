@@ -8,13 +8,23 @@
 
 (define-io-backend io-stream)
 
-(defmethod read-defun ((backend io-stream) type name)
-  `(defun ,name (stream)
+(defmethod read-defun ((backend io-stream) (type io-type))
+  `(define-typed-function ,(intern* 'read- (type-of backend) '- (lisp-type type))
+       ((stream stream))
+       ,(lisp-type type)
      ,(read-form backend type)))
 
-(defmethod write-defun ((backend io-stream) type name)
-  `(defun ,name (value stream)
+(defmethod write-defun ((backend io-stream) (type io-type))
+  `(define-typed-function ,(intern* 'write- (type-of backend) '- (lisp-type type))
+       ((value ,(lisp-type type)) (stream stream))
+       T
      ,(write-form backend type 'value)))
+
+(defmethod call-read-form ((backend io-stream) (type io-type))
+  `(,(intern* 'read- (type-of backend) '- (lisp-type type)) stream))
+
+(defmethod call-write-form ((backend io-stream) (type io-type) value-variable)
+  `(,(intern* 'write- (type-of backend) '- (lisp-type type)) ,value-variable stream))
 
 (defmethod read-form ((backend io-stream) (type io-integer))
   `(,(if (= 1 (octet-size type))
@@ -61,14 +71,14 @@
     stream))
 
 (defmethod read-form ((backend io-stream) (type io-vector))
-  (if (eql 1 (octet-size (element-type type)))
+  (if (equalp '(unsigned-byte 8) (lisp-type (element-type type)))
       `(let ((array (make-array ,(read-form backend (element-count type)) :element-type '(unsigned-byte 8))))
          (read-sequence array stream)
          array)
       (call-next-method)))
 
 (defmethod write-form ((backend io-stream) (type io-vector) value-variable)
-  (if (eql 1 (octet-size (element-type type)))
+  (if (equalp '(unsigned-byte 8) (lisp-type (element-type type)))
       `(write-sequence ,value-variable stream)
       (call-next-method)))
 

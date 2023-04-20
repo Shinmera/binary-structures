@@ -92,13 +92,11 @@
   (color-encoding uint32)
   (identifier uint32))
 
-(define-io-structure bmpfileheader
+(define-io-structure bmp
   "BM"
   (size uint32)
   uint16 uint16
-  (bitmap-offset uint32))
-
-(define-io-structure bmpcontent
+  (bitmap-offset uint32)
   (header (case uint32
             (12 bitmapcoreheader)
             (16 os22xbitmapheader/short)
@@ -122,12 +120,6 @@
   (pixels (vector uint8 (slot header image-size))
           :offset (slot bitmap-offset)))
 
-(define-io-structure bmp
-  (:include bmpfileheader)
-  (:include bmpcontent))
-
-(define-io-functions bmp)
-
 (define-io-structure ico-entry
   (width uint8)
   (height uint8)
@@ -148,8 +140,6 @@
   ;; FIXME:                                 v-- this won't resolve right --v
   (images (vector bmpcontent (slot count) (slot (aref (slot entries) i) offset))))
 
-(define-io-functions ico)
-
 (define-io-structure a
   (field uint8))
 
@@ -157,5 +147,3 @@
   (count uint8)
   (offsets (vector uint8 (slot count)))
   (nest (vector a (slot count) (aref (slot offsets) i))))
-
-(define-io-backend-functions io-foreign-pointer b)

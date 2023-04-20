@@ -28,3 +28,14 @@
   (loop for thing in things
         do (cond ((null thing) (return '*))
                  ((not (numberp thing)) (return thing)))))
+
+(defmacro define-typed-function (name args retval &body body)
+  `(progn
+     (declaim (ftype (function ,(loop for arg in args
+                                      collect (cond ((listp arg) (second arg))
+                                                    ((find arg LAMBDA-LIST-KEYWORDS) arg)
+                                                    (T T)))
+                               ,retval)
+                     ,name))
+     (defun ,name ,(loop for arg in args collect (if (listp arg) (first arg) arg))
+       ,@body)))
