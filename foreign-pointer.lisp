@@ -24,6 +24,7 @@
      (let ((start pointer)
            (pointer pointer))
        (declare (type cffi:foreign-pointer start pointer))
+       (declare (ignorable start))
        (values ,(read-form backend type)
                pointer))))
 
@@ -35,6 +36,7 @@
      (let ((start pointer)
            (pointer pointer))
        (declare (type cffi:foreign-pointer start pointer))
+       (declare (ignorable start))
        ,(write-form backend type 'value)
        pointer)))
 
