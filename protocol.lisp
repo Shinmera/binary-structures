@@ -128,9 +128,10 @@
 
 (defmacro define-io-type-parser (designator lambda-list &body body)
   (let ((args (gensym "ARGS")))
-    `(defmethod parse-io-type ((type (eql ',designator)) &rest ,args)
-       (destructuring-bind ,lambda-list ,args
-         ,@body))))
+    `(eval-when (:compile-toplevel :load-toplevel :execute)
+       (defmethod parse-io-type ((type (eql ',designator)) &rest ,args)
+         (destructuring-bind ,lambda-list ,args
+           ,@body)))))
 
 (defmacro define-io-backend-functions (io-backend io-type)
   `(progn
@@ -469,7 +470,7 @@
            (value (gensym "VALUE")))
        `(macrolet ((slot (name &rest descendants)
                      (let ((value (if (symbolp name)
-                                      (list (intern* ',(lisp-type type) '- name) ',value)
+                                      (list (intern* ',(lisp-type type) '- name) ',value-variable)
                                       name)))
                        (dolist (name descendants value)
                          (setf value `(slot-value ,value ',name))))))

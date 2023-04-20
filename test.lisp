@@ -130,6 +130,29 @@
   (octet-size uint32)
   (offset uint32))
 
+(define-io-structure bmpcontent
+  (header (case uint32
+            (124 bitmapv5infoheader)
+            (108 bitmapv4infoheader)
+            (64 os22xbitmapheader)
+            (56 bitmapv3infoheader)
+            (52 bitmapv2infoheader)
+            (40 bitmapinfoheader)
+            (16 os22xbitmapheader/short)
+            (12 bitmapcoreheader)))
+  (bit-masks (typecase (slot header)
+               (bitmapinfoheader
+                (typecase (slot header compression)
+                  ((eql :bitfields) rgb)
+                  ((eql :alpha-bitfields) rgba)))))
+  (color-table (typecase (slot header)
+                 (bitmapinfoheader
+                  (vector uint8 (* 4 (slot header palette-size))))
+                 (bitmapcoreheader
+                  (vector uint8 (* 3 (expt 2 (slot header bits/pixel)))))
+                 (T NIL)))
+  (pixels (vector uint8 (slot header image-size))))
+
 (define-io-structure ico
   #(0 0)
   (type (case uint16
@@ -137,13 +160,4 @@
           (2 :cur)))
   (count uint16)
   (entries (vector ico-entry (slot count)))
-  ;; FIXME:                                 v-- this won't resolve right --v
   (images (vector bmpcontent (slot count) (slot (aref (slot entries) i) offset))))
-
-(define-io-structure a
-  (field uint8))
-
-(define-io-structure b
-  (count uint8)
-  (offsets (vector uint8 (slot count)))
-  (nest (vector a (slot count) (aref (slot offsets) i))))
