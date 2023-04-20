@@ -98,14 +98,14 @@
   uint16 uint16
   (bitmap-offset uint32)
   (header (case uint32
-            (12 bitmapcoreheader)
-            (16 os22xbitmapheader/short)
-            (40 bitmapinfoheader)
-            (52 bitmapv2infoheader)
-            (56 bitmapv3infoheader)
-            (64 os22xbitmapheader)
+            (124 bitmapv5infoheader)
             (108 bitmapv4infoheader)
-            (124 bitmapv5infoheader)))
+            (64 os22xbitmapheader)
+            (56 bitmapv3infoheader)
+            (52 bitmapv2infoheader)
+            (40 bitmapinfoheader)
+            (16 os22xbitmapheader/short)
+            (12 bitmapcoreheader)))
   (bit-masks (typecase (slot header)
                (bitmapinfoheader
                 (typecase (slot header compression)
