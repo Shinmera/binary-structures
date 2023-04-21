@@ -64,6 +64,7 @@
    #:element-count
    #:element-offset
    #:stride
+   #:i
    #:io-string
    #:encoding
    #:io-case
@@ -77,6 +78,7 @@
    #:slots
    #:name
    #:find-slots
+   #:slot
    #:io-structure-slot
    #:io-structure-magic
    #:define-io-structure

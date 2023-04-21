@@ -249,6 +249,13 @@
 (defmethod initargs append ((type io-integer))
   (list :order (order type) :signed-p (signed-p type)))
 
+(define-io-type-parser integer (&optional (size 4) (signedness) (order :little-endian))
+  (make-instance 'io-integer :octet-size size
+                             :signed-p (ecase signedness
+                                         ((:signed T) T)
+                                         ((:unsigned NIL) NIL))
+                             :order order))
+
 (defclass io-float (numeric-type)
   ())
 
@@ -268,6 +275,9 @@
     (4 'single-float)
     (8 'double-float)
     (16 'long-float)))
+
+(define-io-type-parser float (&optional (size 4))
+  (make-instance 'io-float :octet-size size))
 
 (defclass io-vector (io-type)
   ((element-type :initarg :element-type :initform 'uint8 :accessor element-type)
