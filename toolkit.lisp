@@ -11,7 +11,7 @@
 
 (defun find-symbol* (package &rest args)
   (or (find-symbol (format NIL "~{~a~^~}" args) package)
-      (error "?")))
+      (error "No symbol named ~{~a~^~} on ~a" args package)))
 
 (defmacro define-print-object-method (type format &rest args)
   `(defmethod print-object ((,type ,type) stream)

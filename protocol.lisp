@@ -6,9 +6,30 @@
 
 (in-package #:org.shirakumo.binary-structures)
 
-(define-condition no-such-io-type (error)
+(define-condition binary-structures-condition (condition)
+  ())
+
+(define-condition no-such-io-type (error binary-structures-condition)
   ((designator :initarg :designator :reader designator))
   (:report (lambda (c s) (format s "No io-type with name~%  ~s" (designator c)))))
+
+(define-condition end-of-storage (error binary-structures-condition)
+  ((index :initarg :index :initform NIL :accessor index)
+   (end :initarg :end :initform NIL :accessor end))
+  (:report (lambda (c s) (format s "Failed to parse, as the storage backend ran out of space~@[~%at ~d (~4x), trying to go beyond ~d (~4x)~]"
+                                 (index c) (end c)))))
+
+(define-condition unknown-value (error binary-structures-condition)
+  ((value :initarg :value :accessor value)
+   (accepted :initarg :accepted :accessor accepted))
+  (:report (lambda (c s) (format s "Encountered the value~%  ~a~%but it is not one of the accepted declared values~%  ~a"
+                                 (value c) (accepted c)))))
+
+(define-condition no-such-slot (error binary-structures-condition)
+  ((name :initarg :name :accessor name)
+   (struct :initarg :struct :accessor struct))
+  (:report (lambda (c s) (format s "No slot with name~%  ~s~%found on~%  ~s"
+                                 (name c) (struct c)))))
 
 (defvar *io-backends* ())
 (defvar *io-types* (make-hash-table :test 'eql))
@@ -327,8 +348,7 @@
                                    (if (constantp form)
                                        form
                                        (read-form backend form))))
-             (T (error "The value~%  ~a~%is not among the set of known values:~%~a"
-                       ,value ',(mapcar #'first (cases type))))))))
+             (T (error 'unknown-value :value ,value :accepted ',(mapcar #'first (cases type))))))))
 
 (defmethod write-form ((backend io-backend) (type io-case) value)
   `(cond ,@(loop for (form test) in (cases type)
@@ -350,8 +370,7 @@
                                  (cons
                                   (unless (eql 'quote (car form))
                                     (write-form backend test value))))))
-         (T (error "The value~%  ~a~%is not among the set of accepted values:~%~a"
-                   ,value ',(mapcar #'first (cases type))))))
+         (T (error 'unknown-value :value ,value :accepted ',(mapcar #'first (cases type))))))
 
 (defmethod lisp-type ((type io-case)) T)
 (defmethod default-value ((type io-case)) NIL)
@@ -514,7 +533,7 @@
 
 (defmethod find-slot (name (structure io-structure))
   (or (find name (slots structure) :key #'name)
-      (error "No slot with name ~s found on ~s" name structure)))
+      (error 'no-such-slot :name name :struct structure)))
 
 (defmethod find-slot (name (type T))
   (find-slot name (parse-io-type type)))
