@@ -30,4 +30,4 @@ The primary entry point is via ``define-io-structure``. It'll define the structu
                 (* (slot width) (slot height)))))
 ::
 
-
+From there you should have a ``read-image`` and ``write-image`` function, as well as the ``image`` structure and accessors to deal with the data.

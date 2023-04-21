@@ -6,6 +6,8 @@
 
 (in-package #:org.shirakumo.binary-structures)
 
+;; TODO: thin representation
+
 (defvar *io-backends* ())
 (defvar *io-types* (make-hash-table :test 'eql))
 (defvar *io-dispatchers* (make-hash-table :test 'equalp))
