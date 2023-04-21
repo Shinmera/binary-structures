@@ -8,6 +8,16 @@
 
 (define-io-backend io-foreign-pointer (bounds-checked-io-backend))
 
+(define-io-dispatch :read cffi:foreign-pointer (type storage size)
+  `(progn
+     (check-type size (unsigned-byte 64))
+     (,(intern* 'read-io-foreign-pointer- (lisp-type type)) storage size)))
+
+(define-io-dispatch :write cffi:foreign-pointer (type value storage size)
+  `(progn
+     (check-type size (unsigned-byte 64))
+     (,(intern* 'write-io-foreign-pointer- (lisp-type type)) value storage size)))
+
 (defmacro read-mem (pointer type &optional (octets `(cffi:foreign-type-size ,type)))
   `(prog1 (cffi:mem-ref ,pointer ,type)
     (cffi:incf-pointer ,pointer ,octets)))

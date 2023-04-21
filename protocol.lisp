@@ -6,6 +6,10 @@
 
 (in-package #:org.shirakumo.binary-structures)
 
+(defvar *io-backends* ())
+(defvar *io-types* (make-hash-table :test 'eql))
+(defvar *io-dispatchers* (make-hash-table :test 'equalp))
+
 (define-condition binary-structures-condition (condition)
   ())
 
@@ -14,25 +18,22 @@
   (:report (lambda (c s) (format s "No io-type with name~%  ~s" (designator c)))))
 
 (define-condition end-of-storage (error binary-structures-condition)
-  ((index :initarg :index :initform NIL :accessor index)
-   (end :initarg :end :initform NIL :accessor end))
+  ((index :initarg :index :initform NIL :reader index)
+   (end :initarg :end :initform NIL :reader end))
   (:report (lambda (c s) (format s "Failed to parse, as the storage backend ran out of space~@[~%at ~d (~4x), trying to go beyond ~d (~4x)~]"
                                  (index c) (end c)))))
 
 (define-condition unknown-value (error binary-structures-condition)
-  ((value :initarg :value :accessor value)
-   (accepted :initarg :accepted :accessor accepted))
+  ((value :initarg :value :reader value)
+   (accepted :initarg :accepted :reader accepted))
   (:report (lambda (c s) (format s "Encountered the value~%  ~a~%but it is not one of the accepted declared values~%  ~a"
                                  (value c) (accepted c)))))
 
 (define-condition no-such-slot (error binary-structures-condition)
-  ((name :initarg :name :accessor name)
-   (struct :initarg :struct :accessor struct))
+  ((name :initarg :name :reader name)
+   (struct :initarg :struct :reader struct))
   (:report (lambda (c s) (format s "No slot with name~%  ~s~%found on~%  ~s"
                                  (name c) (struct c)))))
-
-(defvar *io-backends* ())
-(defvar *io-types* (make-hash-table :test 'eql))
 
 (defclass io-backend () 
   ((offset :initarg :offset :initform 0 :accessor offset)))
@@ -144,6 +145,15 @@
      (pushnew ',name *io-backends*)
      ',name))
 
+(defmacro define-io-dispatch (type lisp-type (value-var &rest runtime-args) &body body)
+  `(eval-when (:compile-toplevel :load-toplevel :execute)
+     (setf (gethash (list ,type ',lisp-type) *io-dispatchers*)
+           (lambda (,value-var)
+             (values (progn ,@body) ',runtime-args)))))
+
+(defun remove-io-dispatch (type lisp-type)
+  (remhash (list type lisp-type) *io-dispatchers*))
+
 (defmethod parse-io-type ((type io-type) &rest args)
   (apply #'make-instance (type-of type) (append args (initargs type))))
 
@@ -165,11 +175,37 @@
     (:read (read-defun io-backend io-type))
     (:write (write-defun io-backend io-type))))
 
+(defmacro define-io-dispatch-function (type io-type)
+  (ecase type
+    (:read
+     `(defun ,(intern* type '- io-type) (storage &rest args)
+        (etypecase storage
+          ,@(loop for (generator-type storage-type) being the hash-keys of *io-dispatchers* using (hash-value generator)
+                  for (body args) = (multiple-value-list (funcall generator io-type))
+                  when (eql type generator-type)
+                  collect `(storage-type
+                            (let ((,(first args) storage))
+                              (destructuring-bind ,(rest args) args
+                                ,body)))))))
+    (:write
+     `(defun ,(intern* type '- io-type) (value storage &rest args)
+        (etypecase storage
+          ,@(loop for (generator-type storage-type) being the hash-keys of *io-dispatchers* using (hash-value generator)
+                  for (body args) = (multiple-value-list (funcall generator io-type))
+                  when (eql type generator-type)
+                  collect `(storage-type
+                            (let ((,(first args) value)
+                                  (,(second args) storage))
+                              (destructuring-bind ,(cddr args) args
+                                ,body)))))))))
+
 (defmacro define-io-functions (io-type)
   `(progn
      ,@(loop for backend in *io-backends*
              collect `(define-io-backend-function :read ,backend ,io-type)
-             collect `(define-io-backend-function :write ,backend ,io-type))))
+             collect `(define-io-backend-function :write ,backend ,io-type))
+     (define-io-dispatch-function :read ,io-type)
+     (define-io-dispatch-function :write ,io-type)))
 
 (defmacro define-io-alias (name expansion)
   `(define-io-type-parser ,name ()

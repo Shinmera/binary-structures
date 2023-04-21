@@ -8,6 +8,9 @@
   (:use #:cl)
   (:local-nicknames
    (#:sequences #:org.shirakumo.trivial-extensible-sequences))
+  ;; toolkit.lisp
+  (:export
+   #:unspecific-p)
   ;; protocol.lisp
   (:export
    #:binary-structures-condition
@@ -43,8 +46,11 @@
    #:list-io-types
    #:list-io-backends
    #:define-io-backend
+   #:define-io-dispatch
+   #:remove-io-dispatch
    #:define-io-type-parser
    #:define-io-backend-function
+   #:define-io-dispatch-function
    #:define-io-functions
    #:define-io-alias
    #:top-type

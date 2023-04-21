@@ -8,6 +8,24 @@
 
 (define-io-backend io-stream)
 
+(define-io-dispatch :read stream (type storage)
+  `(,(intern* 'read-io-stream- (lisp-type type)) storage))
+
+(define-io-dispatch :write stream (type value storage)
+  `(,(intern* 'write-io-stream- (lisp-type type)) value storage))
+
+(define-io-dispatch :read pathname (type storage &key (if-does-not-exist :error))
+  `(with-open-file (stream storage :if-does-not-exist if-does-not-exist
+                                   :element-type '(unsigned-byte 8)
+                                   :direction :input)
+     (,(intern* 'read-io-stream- (lisp-type type)) stream)))
+
+(define-io-dispatch :write pathname (type args value storage &key (if-exists :error))
+  `(with-open-file (stream storage :if-exists if-exists
+                                   :element-type '(unsigned-byte 8)
+                                   :direction :output)
+     (,(intern* 'write-io-stream- (lisp-type type)) value stream)))
+
 (defmethod read-defun ((backend io-stream) (type io-type))
   `(define-typed-function ,(intern* 'read- (type-of backend) '- (lisp-type type))
        ((stream stream))

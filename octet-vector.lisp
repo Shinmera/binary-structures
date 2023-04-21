@@ -8,6 +8,28 @@
 
 (define-io-backend io-octet-vector (bounds-checked-io-backend))
 
+(define-io-dispatch :read (simple-array (unsigned-byte 8) (*)) (type storage &key (start 0) (end (length storage)))
+  `(progn
+     (check-type start (unsigned-byte 64))
+     (check-type end (unsigned-byte 64))
+     (,(intern* 'read-io-octet-vector- (lisp-type type)) storage start end)))
+
+(define-io-dispatch :write (simple-array (unsigned-byte 8) (*)) (type value storage &key (start 0) (end (length storage)))
+  `(progn
+     (check-type start (unsigned-byte 64))
+     (check-type end (unsigned-byte 64))
+     (,(intern* 'write-io-octet-vector- (lisp-type type)) value storage start end)))
+
+(define-io-dispatch :read (array (unsigned-byte 8) (*)) (type storage &key (start 0) (end (length storage)))
+  `(let ((array (make-array (- end start) :element-type '(unsigned-byte 8))))
+     (replace array storage :start2 start :end2 end)
+     (,(intern* 'read-io-octet-vector- (lisp-type type)) array 0 (length array))))
+
+(define-io-dispatch :write (array (unsigned-byte 8) (*)) (type (value storage &key (start 0) (end (length storage))))
+  `(let ((array (make-array (- end start) :element-type '(unsigned-byte 8))))
+     (replace array storage :start2 start :end2 end)
+     (,(intern* 'write-io-octet-vector- (lisp-type type)) value array 0 (length array))))
+
 (defmethod read-defun ((backend io-octet-vector) (type io-type))
   `(define-typed-function ,(intern* 'read- (type-of backend) '- (lisp-type type)) 
        ((vector (simple-array (unsigned-byte 8) (*))) (start (unsigned-byte 64)) (end (unsigned-byte 64)))
