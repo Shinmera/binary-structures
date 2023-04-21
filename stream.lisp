@@ -30,14 +30,14 @@
   `(define-typed-function ,(intern* 'read- (type-of backend) '- (lisp-type type))
        ((stream stream))
        ,(lisp-type type)
-     (handler-bind ((end-of-file (lambda (e) (error 'end-of-storage))))
+     (handler-bind ((end-of-file (lambda (e) (declare (ignore e)) (error 'end-of-storage))))
        ,(read-form backend type))))
 
 (defmethod write-defun ((backend io-stream) (type io-type))
   `(define-typed-function ,(intern* 'write- (type-of backend) '- (lisp-type type))
        ((value ,(lisp-type type)) (stream stream))
        T
-     (handler-bind ((end-of-file (lambda (e) (error 'end-of-storage))))
+     (handler-bind ((end-of-file (lambda (e) (declare (ignore e)) (error 'end-of-storage))))
        ,(write-form backend type 'value))))
 
 (defmethod call-read-form ((backend io-stream) (type io-type))

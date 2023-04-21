@@ -390,6 +390,7 @@
                                      (number `(= ,value ,test))
                                      (character `(char= ,value ,test))
                                      (string `(string= ,value ,test))
+                                     (symbol `(eq ,value ',test))
                                      (vector `(equalp ,value ,test)))
                                    (if (constantp form)
                                        form
@@ -405,7 +406,7 @@
                                  (vector `(equalp ,value ,test))
                                  ((or keyword (eql T) (eql NIL)) `(eq ,value ,test))
                                  (cons
-                                  (if (eql 'quote (car form))
+                                  (if (eql 'quote (car test))
                                       `(eq ,value ,test)
                                       `(typep ,value ',(lisp-type test))))
                                  (symbol `(typep ,value ',(lisp-type test))))
@@ -414,7 +415,7 @@
                                  ((and symbol (not (or keyword (eql T) (eql NIL))))
                                   (write-form backend test value))
                                  (cons
-                                  (unless (eql 'quote (car form))
+                                  (unless (eql 'quote (car test))
                                     (write-form backend test value))))))
          (T (error 'unknown-value :value ,value :accepted ',(mapcar #'first (cases type))))))
 
