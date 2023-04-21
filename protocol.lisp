@@ -735,7 +735,9 @@
 (defmethod read-form ((backend bounds-checked-io-backend) (type io-vector))
   ;; KLUDGE: Sad, we mostly copy the entire thing just to emit the check form after allocating the vector.
   (let ((vector (gensym "VECTOR")))
-    `(let ((,vector (make-array ,(read-form backend (element-count type))
+    `(let ((,vector (make-array ,(if (unspecific-p (element-count type))
+                                     (read-form backend (element-count type))
+                                     (element-count type))
                                 :element-type ',(lisp-type (element-type type)))))
        (declare (optimize #+sbcl (sb-c::insert-array-bounds-checks 0)))
        ,@(unless (or (element-offset type)

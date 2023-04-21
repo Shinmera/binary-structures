@@ -92,7 +92,10 @@
 
 (defmethod read-form ((backend io-stream) (type io-vector))
   (if (equalp '(unsigned-byte 8) (lisp-type (element-type type)))
-      `(let ((array (make-array ,(read-form backend (element-count type)) :element-type '(unsigned-byte 8))))
+      `(let ((array (make-array ,(if (unspecific-p (element-count type))
+                                     (read-form backend (element-count type))
+                                     (element-count type))
+                                :element-type '(unsigned-byte 8))))
          (read-sequence array stream)
          array)
       (call-next-method)))

@@ -120,7 +120,10 @@
 
 (defmethod read-form ((backend io-octet-vector) (type io-vector))
   (if (equalp '(unsigned-byte 8) (lisp-type (element-type type)))
-      `(let ((array (make-array ,(read-form backend (element-count type)) :element-type '(unsigned-byte 8))))
+      `(let ((array (make-array ,(if (unspecific-p (element-count type))
+                                     (read-form backend (element-count type))
+                                     (element-count type))
+                                :element-type '(unsigned-byte 8))))
          (declare (optimize #+sbcl (sb-c::insert-array-bounds-checks 0)))
          (check-available-space (length array))
          (replace array vector :start2 index)
