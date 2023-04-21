@@ -39,3 +39,7 @@
                      ,name))
      (defun ,name ,(loop for arg in args collect (if (listp arg) (first arg) arg))
        ,@body)))
+
+(defun reexport (symb pkg)
+  (import symb pkg)
+  (export symb pkg))

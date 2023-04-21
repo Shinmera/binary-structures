@@ -19,6 +19,7 @@
     `(progn
        ,@(loop for (name . args) in (nreverse combs)
                collect `(export ',(intern name))
+               collect `(reexport ',(intern name) '#:org.shirakumo.binary-structures.types)
                collect `(setf (io-type ',(intern name)) (make-instance ',type ,@args))
                collect `(setf (io-type ,(intern name "KEYWORD")) (io-type ',(intern name)))))))
 

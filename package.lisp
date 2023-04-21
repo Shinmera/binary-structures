@@ -4,6 +4,9 @@
  Author: Nicolas Hafner <shinmera@tymoon.eu>
 |#
 
+(defpackage #:org.shirakumo.binary-structures.types
+  (:use))
+
 (defpackage #:org.shirakumo.binary-structures
   (:use #:cl)
   (:local-nicknames
