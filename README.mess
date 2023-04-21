@@ -31,3 +31,6 @@ The primary entry point is via ``define-io-structure``. It'll define the structu
 ::
 
 From there you should have a ``read-image`` and ``write-image`` function, as well as the ``image`` structure and accessors to deal with the data.
+
+## Limitations
+This library is best suited towards files with a clear, fixed layout that grows sequentially from the beginning. Formats like ZIP that need to be scanned from the end cannot be decoded. There's also no way to restructure data after it has been parsed, so you may need additional wrapper functions or a secondary translation step to create a truly convenient view of the data.
