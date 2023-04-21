@@ -93,4 +93,4 @@
   (:export
    #:io-stream
    #:io-octet-vector
-   #:io-foreign-pointer)))
+   #:io-foreign-pointer))
