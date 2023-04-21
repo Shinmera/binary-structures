@@ -25,7 +25,7 @@
      (replace array storage :start2 start :end2 end)
      (,(intern* 'read-io-octet-vector- (lisp-type type)) array 0 (length array))))
 
-(define-io-dispatch :write (array (unsigned-byte 8) (*)) (type (value storage &key (start 0) (end (length storage))))
+(define-io-dispatch :write (array (unsigned-byte 8) (*)) (type value storage &key (start 0) (end (length storage)))
   `(let ((array (make-array (- end start) :element-type '(unsigned-byte 8))))
      (replace array storage :start2 start :end2 end)
      (,(intern* 'write-io-octet-vector- (lisp-type type)) value array 0 (length array))))

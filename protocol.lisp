@@ -183,7 +183,7 @@
           ,@(loop for (generator-type storage-type) being the hash-keys of *io-dispatchers* using (hash-value generator)
                   for (body args) = (multiple-value-list (funcall generator io-type))
                   when (eql type generator-type)
-                  collect `(storage-type
+                  collect `(,storage-type
                             (let ((,(first args) storage))
                               (destructuring-bind ,(rest args) args
                                 ,body)))))))
@@ -193,7 +193,7 @@
           ,@(loop for (generator-type storage-type) being the hash-keys of *io-dispatchers* using (hash-value generator)
                   for (body args) = (multiple-value-list (funcall generator io-type))
                   when (eql type generator-type)
-                  collect `(storage-type
+                  collect `(,storage-type
                             (let ((,(first args) value)
                                   (,(second args) storage))
                               (destructuring-bind ,(cddr args) args
@@ -736,7 +736,7 @@
                                 :element-type ',(lisp-type (element-type type)))))
        (declare (optimize #+sbcl (sb-c::insert-array-bounds-checks 0)))
        ,@(unless (or (element-offset type)
-                     (typep (io-type (element-type type)) 'io-structure))
+                     (typep (io-type (element-type type) NIL) '(or null io-structure)))
            `((check-available-space (* (length ,vector) ,(or (stride type) (octet-size (element-type type)))))))
        (dotimes (i (length ,vector) ,vector)
          ,@(when (element-offset type)
@@ -748,7 +748,7 @@
   (let ((element (gensym "ELEMENT")))
     `(locally (declare (optimize #+sbcl (sb-c::insert-array-bounds-checks 0)))
        ,@(unless (or (element-offset type)
-                     (typep (io-type (element-type type)) 'io-structure))
+                     (typep (io-type (element-type type) NIL) '(or null io-structure)))
            `((check-available-space (* (length ,value-variable) ,(or (stride type) (octet-size (element-type type)))))))
        (dotimes (i (length ,value-variable))
          (let ((,element (aref ,value-variable i)))

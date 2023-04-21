@@ -20,7 +20,7 @@
                                    :direction :input)
      (,(intern* 'read-io-stream- (lisp-type type)) stream)))
 
-(define-io-dispatch :write pathname (type args value storage &key (if-exists :error))
+(define-io-dispatch :write pathname (type value storage &key (if-exists :error))
   `(with-open-file (stream storage :if-exists if-exists
                                    :element-type '(unsigned-byte 8)
                                    :direction :output)
