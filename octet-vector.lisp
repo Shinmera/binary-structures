@@ -6,7 +6,7 @@
 
 (in-package #:org.shirakumo.binary-structures)
 
-(define-io-backend io-octet-vector)
+(define-io-backend io-octet-vector (bounds-checked-io-backend))
 
 (defmethod read-defun ((backend io-octet-vector) (type io-type))
   `(define-typed-function ,(intern* 'read- (type-of backend) '- (lisp-type type)) 
@@ -14,8 +14,12 @@
        (values ,(lisp-type type) (unsigned-byte 64))
      (declare (ignorable end))
      (let ((index start))
-       (values ,(read-form backend type)
-               index))))
+       (flet ((check-available-space (space)
+                (when (< end (+ space index))
+                  (error "EOF"))))
+         (declare (ignorable #'check-available-space) (inline check-available-space))
+         (values ,(read-form backend type)
+                 index)))))
 
 (defmethod write-defun ((backend io-octet-vector) (type io-type))
   `(define-typed-function ,(intern* 'write- (type-of backend) '- (lisp-type type))
@@ -23,7 +27,11 @@
        (unsigned-byte 64)
      (declare (ignorable end))
      (let ((index start))
-       ,(write-form backend type 'value)
+       (flet ((check-available-space (space)
+                (when (< end (+ space index))
+                  (error "EOF"))))
+         (declare (ignorable #'check-available-space) (inline check-available-space))
+         ,(write-form backend type 'value))
        index)))
 
 (defmethod call-read-form ((backend io-octet-vector) (type io-type))
@@ -90,19 +98,27 @@
 
 (defmethod read-form ((backend io-octet-vector) (type io-vector))
   (if (equalp '(unsigned-byte 8) (lisp-type (element-type type)))
-      `(let ((array (subseq vector index ,(read-form backend (element-count type))))) 
+      `(let ((array (make-array ,(read-form backend (element-count type)) :element-type '(unsigned-byte 8))))
+         (declare (optimize #+sbcl (sb-c::insert-array-bounds-checks 0)))
+         (check-available-space (length array))
+         (replace array vector :start2 index)
          (incf index (length array))
          array)
       (call-next-method)))
 
 (defmethod write-form ((backend io-octet-vector) (type io-vector) value-variable)
   (if (equalp '(unsigned-byte 8) (lisp-type (element-type type)))
-      `(progn (replace vector ,value-variable :start1 index)
-              (incf index (length ,value-variable)))
+      `(locally (declare (optimize #+sbcl (sb-c::insert-array-bounds-checks 0)))
+         (check-available-space (length ,value-variable))
+         (replace vector ,value-variable :start1 index)
+         (incf index (length ,value-variable)))
       (call-next-method)))
 
 (defmethod index-form ((backend io-octet-vector))
   'index)
 
 (defmethod seek-form ((backend io-octet-vector) offset)
-  `(setf index ,offset))
+  `(let ((new (+ start ,offset)))
+     (if (< new end)
+         (setf index new)
+         (error "EOF"))))

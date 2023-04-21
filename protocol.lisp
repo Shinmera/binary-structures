@@ -117,9 +117,9 @@
 (defun list-io-backends ()
   (copy-list *io-backends*))
 
-(defmacro define-io-backend (name &rest slots)
+(defmacro define-io-backend (name &optional (supers '(io-backend)) &rest slots)
   `(progn
-     (defclass ,name (io-backend) ,slots)
+     (defclass ,name ,supers ,slots)
      (pushnew ',name *io-backends*)
      ',name))
 
@@ -640,3 +640,51 @@
            :slots (parse-io-structure-slots ',(if include (list* include slots) slots)))
 
          (define-io-functions ,name)))))
+
+(defclass bounds-checked-io-backend (io-backend)
+  ())
+
+(defmethod read-form ((backend bounds-checked-io-backend) (type io-structure))
+  (let ((minimum (loop for slot in (slots type)
+                       for size = (octet-size slot)
+                       until (unspecific-p size)
+                       sum size)))
+    (if (< 0 minimum)
+        `(progn (check-available-space ,minimum)
+                ,(call-next-method))
+        (call-next-method))))
+
+(defmethod write-form ((backend bounds-checked-io-backend) (type io-structure) value-variable)
+  (let ((minimum (loop for slot in (slots type)
+                       for size = (octet-size slot)
+                       until (unspecific-p size)
+                       sum size)))
+    (if (< 0 minimum)
+        `(progn (check-available-space ,minimum)
+                ,(call-next-method))
+        (call-next-method))))
+
+(defmethod read-form ((backend bounds-checked-io-backend) (type io-vector))
+  ;; KLUDGE: Sad, we mostly copy the entire thing just to emit the check form after allocating the vector.
+  (let ((vector (gensym "VECTOR")))
+    `(let ((,vector (make-array ,(read-form backend (element-count type))
+                                :element-type ',(lisp-type (element-type type)))))
+       (declare (optimize #+sbcl (sb-c::insert-array-bounds-checks 0)))
+       ,@(unless (or (element-offset type)
+                     (typep (io-type (element-type type)) 'io-structure))
+           `((check-available-space (* (length ,vector) ,(or (stride type) (octet-size (element-type type)))))))
+       (dotimes (i (length ,vector) ,vector)
+         ,@(when (element-offset type)
+             (list (seek-form backend (element-offset type))))
+         (setf (aref ,vector i) ,(read-form backend (element-type type)))))))
+
+(defmethod write-form ((backend bounds-checked-io-backend) (type io-vector) value-variable)
+  ;; KLUDGE: Sad, we mostly copy the entire thing just to emit the check form after allocating the vector.
+  (let ((element (gensym "ELEMENT")))
+    `(locally (declare (optimize #+sbcl (sb-c::insert-array-bounds-checks 0)))
+       ,@(unless (or (element-offset type)
+                     (typep (io-type (element-type type)) 'io-structure))
+           `((check-available-space (* (length ,value-variable) ,(or (stride type) (octet-size (element-type type)))))))
+       (dotimes (i (length ,value-variable))
+         (let ((,element (aref ,value-variable i)))
+           ,(write-form backend (element-type type) element))))))

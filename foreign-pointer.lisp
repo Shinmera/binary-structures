@@ -6,7 +6,7 @@
 
 (in-package #:org.shirakumo.binary-structures)
 
-(define-io-backend io-foreign-pointer)
+(define-io-backend io-foreign-pointer (bounds-checked-io-backend))
 
 (defmacro read-mem (pointer type &optional (octets `(cffi:foreign-type-size ,type)))
   `(prog1 (cffi:mem-ref ,pointer ,type)
@@ -25,8 +25,12 @@
            (pointer pointer))
        (declare (type cffi:foreign-pointer start pointer))
        (declare (ignorable start))
-       (values ,(read-form backend type)
-               pointer))))
+       (flet ((check-available-space (space)
+                (when (< (- size (- (cffi:pointer-address pointer) (cffi:pointer-address start))) space)
+                  (error "EOF"))))
+         (declare (ignorable #'check-available-space) (inline check-available-space))
+         (values ,(read-form backend type)
+                 pointer)))))
 
 (defmethod write-defun ((backend io-foreign-pointer) (type io-type))
   `(define-typed-function ,(intern* 'write- (type-of backend) '- (lisp-type type)) 
@@ -37,7 +41,11 @@
            (pointer pointer))
        (declare (type cffi:foreign-pointer start pointer))
        (declare (ignorable start))
-       ,(write-form backend type 'value)
+       (flet ((check-available-space (space)
+                (when (< (- size (- (cffi:pointer-address pointer) (cffi:pointer-address start))) space)
+                  (error "EOF"))))
+         (declare (ignorable #'check-available-space))
+         ,(write-form backend type 'value))
        pointer)))
 
 (defmethod call-read-form ((backend io-foreign-pointer) (type io-type))
@@ -87,4 +95,6 @@
       (cffi:pointer-address start)))
 
 (defmethod seek-form ((backend io-foreign-pointer) offset)
-  `(setf pointer (cffi:inc-pointer start ,offset)))
+  `(if (<= ,offset size)
+       (setf pointer (cffi:inc-pointer start ,offset))
+       (error "EOF")))
