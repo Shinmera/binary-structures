@@ -18,7 +18,9 @@
       (apply #'r "" () combinators))
     `(progn
        ,@(loop for (name . args) in (nreverse combs)
-               collect `(setf (io-type ',(intern name)) (make-instance ',type ,@args))))))
+               collect `(export ',(intern name))
+               collect `(setf (io-type ',(intern name)) (make-instance ',type ,@args))
+               collect `(setf (io-type ,(intern name "KEYWORD")) (io-type ',(intern name)))))))
 
 (define-io-type (top-type T))
 
