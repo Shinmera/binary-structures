@@ -1,0 +1,33 @@
+# About binary-structures
+This is yet another library implementing a compiler to make parsing binary files or structures easier. It generates reader and writer functions to translate from streams, octet vectors, and memory pointers directly, and has an extensible protocol to allow implementing other storage backends as well.
+
+## How To
+The primary entry point is via ``define-io-structure``. It'll define the structure type, io-type, and the parsing functions for you in one go. Here's an example that shows off most capabilities:
+
+:: common lisp
+(define-io-structure rgb
+  (r uint8)
+  (g uint8)
+  (b uint8))
+
+(define-io-structure rgba
+  (:include rgb)
+  (a uint8))
+
+(define-io-structure image
+  "IMG"
+  (version uint8)
+  (width uint32)
+  (height uint32)
+  (pixel-type (case uint8
+                (1 'uint8)
+                (2 'rgb)
+                (3 'rgba)))
+  (data (vector (case (slot pixel-type)
+                  (uint8 uint8)
+                  (rgb rgb)
+                  (rgba rgba))
+                (* (slot width) (slot height)))))
+::
+
+
