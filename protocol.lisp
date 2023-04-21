@@ -631,6 +631,7 @@
                           collect (list value (code-char value)))))
         ((default-value type)
          `(let ((value ,(read-form backend (value-type type))))
+            (declare (dynamic-extent value))
             (assert (equalp value ,(default-value type)))))
         (T
          (read-form backend (value-type type)))))

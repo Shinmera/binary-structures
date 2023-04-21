@@ -10,12 +10,12 @@
 
 (define-io-dispatch :read cffi:foreign-pointer (type storage size)
   `(progn
-     (check-type size (unsigned-byte 64))
+     (check-type size index)
      (,(intern* 'read-io-foreign-pointer- (lisp-type type)) storage size)))
 
 (define-io-dispatch :write cffi:foreign-pointer (type value storage size)
   `(progn
-     (check-type size (unsigned-byte 64))
+     (check-type size index)
      (,(intern* 'write-io-foreign-pointer- (lisp-type type)) value storage size)))
 
 (defmacro read-mem (pointer type &optional (octets `(cffi:foreign-type-size ,type)))
@@ -28,7 +28,7 @@
 
 (defmethod read-defun ((backend io-foreign-pointer) (type io-type))
   `(define-typed-function ,(intern* 'read- (type-of backend) '- (lisp-type type))
-       ((pointer cffi:foreign-pointer) (size (unsigned-byte 64)))
+       ((pointer cffi:foreign-pointer) (size index))
        (values ,(lisp-type type) cffi:foreign-pointer)
      (declare (ignorable size))
      (let ((start pointer)
@@ -36,15 +36,16 @@
        (declare (type cffi:foreign-pointer start pointer))
        (declare (ignorable start))
        (flet ((check-available-space (space)
-                (when (< (- size (- (cffi:pointer-address pointer) (cffi:pointer-address start))) space)
-                  (error 'end-of-storage :index (cffi:pointer-address pointer) :end (+ (cffi:pointer-address start) size)))))
+                (when (< (the index (- size (the index (- (cffi:pointer-address pointer) (cffi:pointer-address start)))))
+                         (the index space))
+                  (error 'end-of-storage :index (cffi:pointer-address pointer) :end (the index (+ (cffi:pointer-address start) size))))))
          (declare (ignorable #'check-available-space) (inline check-available-space))
          (values ,(read-form backend type)
                  pointer)))))
 
 (defmethod write-defun ((backend io-foreign-pointer) (type io-type))
   `(define-typed-function ,(intern* 'write- (type-of backend) '- (lisp-type type)) 
-       ((value ,(lisp-type type)) (pointer cffi:foreign-pointer) (size (unsigned-byte 64)))
+       ((value ,(lisp-type type)) (pointer cffi:foreign-pointer) (size index))
        cffi:foreign-pointer
      (declare (ignorable size))
      (let ((start pointer)
@@ -52,8 +53,9 @@
        (declare (type cffi:foreign-pointer start pointer))
        (declare (ignorable start))
        (flet ((check-available-space (space)
-                (when (< (- size (- (cffi:pointer-address pointer) (cffi:pointer-address start))) space)
-                  (error 'end-of-storage :index (cffi:pointer-address pointer) :end (+ (cffi:pointer-address start) size)))))
+                (when (< (the index (- size (the index (- (cffi:pointer-address pointer) (cffi:pointer-address start)))))
+                         (the index space))
+                  (error 'end-of-storage :index (cffi:pointer-address pointer) :end (the index (+ (cffi:pointer-address start) size))))))
          (declare (ignorable #'check-available-space))
          ,(write-form backend type 'value))
        pointer)))

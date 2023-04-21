@@ -38,8 +38,12 @@
                                ,retval)
                      ,name))
      (defun ,name ,(loop for arg in args collect (if (listp arg) (first arg) arg))
+       (declare (optimize speed (safety 1) (space 0)))
        ,@body)))
 
 (defun reexport (symb pkg)
   (import symb pkg)
   (export symb pkg))
+
+(deftype index ()
+  `(integer 0 ,(1- ARRAY-DIMENSION-LIMIT)))
