@@ -32,5 +32,53 @@ The primary entry point is via ``define-io-structure``. It'll define the structu
 
 From there you should have a ``read-image`` and ``write-image`` function, as well as the ``image`` structure and accessors to deal with the data.
 
+## Standard Types
+The following type names are defined and available in the ``org.shirakumo.binary-structures.types`` package:
+
+- ``uint8``
+- ``uint16``
+- ``uint32``
+- ``uint64``
+- ``uint128``
+- ``sint8``
+- ``sint16``
+- ``sint32``
+- ``sint64``
+- ``sint128``
+- ``float16``
+- ``float32``
+- ``float64``
+- ``float128``
+- ``uint8-be``
+- ``uint16-be``
+- ``uint32-be``
+- ``uint64-be``
+- ``uint128-be``
+- ``sint8-be``
+- ``sint16-be``
+- ``sint32-be``
+- ``sint64-be``
+- ``sint128-be``
+- ``float16-be``
+- ``float32-be``
+- ``float64-be``
+- ``float128-be``
+- ``utf8-string``
+- ``utf16-string``
+- ``utf32-string``
+- ``latin1-string``
+- ``(string [SIZE] [ENCODING])``
+  See ``io-string``
+- ``(integer [SIZE] [SIGNEDNESS] [ORDER])``
+  See ``io-integer``
+- ``(float [SIZE])``
+  See ``io-float``
+- ``(vector ELEMENT-TYPE [ELEMENT-COUNT] [ELEMENT-OFFSET])``
+  See ``io-vector``
+- ``(case VALUE-TYPE CASE...)``
+  See ``io-case``
+- ``(typecase FORM CASE...)``
+  See ``io-typecase``
+
 ## Limitations
 This library is best suited towards files with a clear, fixed layout that grows sequentially from the beginning. Formats like ZIP that need to be scanned from the end cannot be decoded. There's also no way to restructure data after it has been parsed, so you may need additional wrapper functions or a secondary translation step to create a truly convenient view of the data. Finally, all data must be octet-aligned.

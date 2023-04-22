@@ -378,7 +378,7 @@
   (list :encoding (encoding type)
         :element-count (element-count type)))
 
-(define-io-type-parser string (element-count &optional (encoding :utf-8))
+(define-io-type-parser string (&optional (element-count '*) (encoding :utf-8))
   (make-instance 'io-string :element-count element-count
                             :encoding encoding))
 
