@@ -372,7 +372,7 @@
   (let ((count (element-count type)))
     (if (numberp count) count '*)))
 
-(defmethod initargs :around ((type io-string))
+(defmethod initargs append ((type io-string))
   (list :encoding (encoding type)
         :element-count (element-count type)))
 
