@@ -103,7 +103,7 @@
                           (ecase (octet-size type)
                             (4 'single)
                             (8 'double))
-                          'ref
+                          '-ref
                           (ecase (order type)
                             (:little-endian '/le)
                             (:big-endian '/be)))
@@ -116,7 +116,7 @@
                            (ecase (octet-size type)
                              (4 'single)
                              (8 'double))
-                           'ref
+                           '-ref
                            (ecase (order type)
                              (:little-endian '/le)
                              (:big-endian '/be)))
