@@ -292,7 +292,9 @@
 
 (defmethod read-form ((backend io-backend) (type io-vector))
   (let ((vector (gensym "VECTOR")))
-    `(let ((,vector (make-array ,(read-form backend (element-count type))
+    `(let ((,vector (make-array ,(if (unspecific-p (element-count type))
+                                     (read-form backend (element-count type))
+                                     (element-count type))
                                :element-type ',(lisp-type (element-type type)))))
        (dotimes (i (length ,vector) ,vector)
          ,@(when (element-offset type)
