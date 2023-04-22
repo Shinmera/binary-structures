@@ -93,14 +93,14 @@
        ,(octet-size type)))
 
 (defmethod write-form ((backend io-foreign-pointer) (type io-float) value-variable)
-  `(write-pointer ,value-variable
-                  pointer
-                  ,(ecase (octet-size type)
-                     (2 :half-float)
-                     (4 :float)
-                     (8 :double)
-                     (16 :long-double))
-                  ,(octet-size type)))
+  `(write-mem ,value-variable
+       pointer
+       ,(ecase (octet-size type)
+          (2 :half-float)
+          (4 :float)
+          (8 :double)
+          (16 :long-double))
+       ,(octet-size type)))
 
 (defmethod index-form ((backend io-foreign-pointer))
   `(- (cffi:pointer-address pointer)
