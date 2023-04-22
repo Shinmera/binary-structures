@@ -1,0 +1,588 @@
+<!DOCTYPE html> <html lang="EN"> <head> <meta charset="utf-8"> <title>Binary Structures</title> <style>html body{margin:0 auto 0 auto;padding:20px;max-width:1024px;font-family:sans-serif;font-size:14pt;overflow-y:scroll;}html body a{text-decoration:none;}html body a[href]{color:#0055AA;}html body a[href]:hover{color:#0088EE;}html body pre{background:#FAFAFA;border:1px solid #DDDDDD;padding:0.75em;overflow-x:auto;}html body pre >code a[href]{color:#223388;}article.project h1{font-size:1.7em;}article.project h1,article.project h2,article.project h3,article.project h4,article.project h5,article.project h6{margin:0.2em 0 0.1em 0;text-indent:1em;}article.project >header{text-align:center;}article.project >header img.logo{display:block;margin:auto;max-height:170px;}article.project >header h1{display:inline-block;text-indent:0;font-size:2.5em;}article.project >header .version{vertical-align:bottom;}article.project >header .languages{margin-top:-0.5em;text-transform:capitalize;}article.project >header .description{margin:0;}article.project >header .pages{margin-top:0.5em;font-size:1.2em;text-transform:capitalize;}article.project >header .pages a{display:inline-block;padding:0 0.2em;}article.project >section{margin:1em 0 1em 0;}article.project #index >ul{list-style:none;margin:0;padding:0;}article.project .row label{display:inline-block;min-width:8em;}article.project #system .row{display:flex;}article.project #system #dependencies{display:inline;margin:0;padding:0;}article.project #system #dependencies li{display:inline;padding:0 0.2em;}article.project #system #author label{vertical-align:top;}article.project #system #author ul{display:inline-block;margin:0;padding:0;list-style:none;}article.definition{margin:1em 0 0 0;}article.definition >header h1,article.definition >header h2,article.definition >header h3,article.definition >header h4,article.definition >header h5,article.definition >header h6{text-indent:0;display:inline-block;}article.definition >header ul{display:inline-block;list-style:none;margin:0;padding:0;}article.definition >header ul li{display:inline-block;padding:0 0.2em 0 0;}article.definition >header .visibility{display:none;}article.definition >header .visibility,article.definition >header .type{text-transform:lowercase;}article.definition >header .source-link{visibility:hidden;float:right;}article.definition >header .source-link:after{visibility:visible;content:"[SRC]";}article.definition .docstring{margin:0 0 0 1em;}article.definition .docstring pre{font-size:0.8em;white-space:pre-wrap;}.definition.package >header ul.nicknames{display:inline-block;list-style:none;margin:0;padding:0 0 0 1em;}.definition.package >header ul.nicknames li{display:inline;}.definition.package >header ul.nicknames:before{content:"(";}.definition.package >header ul.nicknames:after{content:")";}.definition.package ul.definitions{margin:0;list-style:none;padding:0 0 0 0.5em;}.definition.callable >header .name:before,.definition.type >header .name:before{content:"(";font-weight:normal;}.definition.callable >header .arguments:after,.definition.type >header .arguments:after{content:")";}.definition.callable >header .arguments .arguments:before,.definition.type >header .arguments .arguments:before{content:"(";}.definition.callable >header .arguments .argument,.definition.type >header .arguments .argument{padding:0;}.definition.callable >header .arguments .argument.lambda-list-keyword,.definition.type >header .arguments .argument.lambda-list-keyword{color:#991155;}.definition li>mark{background:none;border-left:0.3em solid #0088EE;padding-left:0.3em;display:block;}</style> </head> <body> <article class="project"> <header>   <h1>binary structures</h1>   <span class="version">1.0.0</span>    <p class="description">A library for reading, writing, and representing structures from binary representations</p>   </header> <section id="documentation"><article><h1 id="about binary-structures">About binary-structures</h1><p>This is yet another library implementing a compiler to make parsing binary files or structures easier. It generates reader and writer functions to translate from streams, octet vectors, and memory pointers directly, and has an extensible protocol to allow implementing other storage backends as well.</p><h2 id="how to">How To</h2><p>The primary entry point is via <code><a href="#MACRO-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ADEFINE-IO-STRUCTURE" class="xref">define-io-structure</a></code>. It'll define the structure type, io-type, and the parsing functions for you in one go. Here's an example that shows off most capabilities:</p><code style="display:block" class="code-block" data-language="common lisp"><pre>(<a href="#MACRO-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ADEFINE-IO-STRUCTURE" class="xref">define-io-structure</a> rgb
+  (r uint8)
+  (g uint8)
+  (b uint8))
+
+(<a href="#MACRO-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ADEFINE-IO-STRUCTURE" class="xref">define-io-structure</a> rgba
+  (:include rgb)
+  (a uint8))
+
+(<a href="#MACRO-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ADEFINE-IO-STRUCTURE" class="xref">define-io-structure</a> image
+  &quot;IMG&quot;
+  (version uint8)
+  (width uint32)
+  (height uint32)
+  (pixel-type (case uint8
+                (1 'uint8)
+                (2 'rgb)
+                (3 'rgba)))
+  (data (vector (case (slot pixel-type)
+                  (uint8 uint8)
+                  (rgb rgb)
+                  (rgba rgba))
+                (* (slot width) (slot height)))))</pre></code><p>From there you should have a <code>read-image</code> and <code>write-image</code> function, as well as the <code>image</code> structure and accessors to deal with the data.</p><h2 id="limitations">Limitations</h2><p>This library is best suited towards files with a clear, fixed layout that grows sequentially from the beginning. Formats like ZIP that need to be scanned from the end cannot be decoded. There's also no way to restructure data after it has been parsed, so you may need additional wrapper functions or a secondary translation step to create a truly convenient view of the data. Finally, all data must be octet-aligned.</p></article></section>   <section id="system"> <h2>System Information</h2>  <div class="row"> <label for="version">Version:</label> <a id="version">1.0.0</a> </div>   <div class="row"> <label for="dependencies">Dependencies:</label> <ul id="dependencies"><li><a class="external">cffi</a></li><li><a class="external">babel</a></li><li><a class="external">nibbles</a></li><li><a class="external" href="https://shinmera.github.io/trivial-extensible-sequences/">trivial-extensible-sequences</a></li><li><a class="external" href="https://Shinmera.github.io/documentation-utils/">documentation-utils</a></li></ul> </div>   <div class="row" id="author"> <label for="author">Author:</label> <a href="mailto:shinmera@tymoon.eu">Nicolas Hafner</a> </div>   <div class="row"> <label for="license">License:</label> <a id="license" href="https://github.com/shinmera/binary-structures/blob/HEAD/LICENSE">zlib</a> </div>   <div class="row"> <label for="homepage">Homepage:</label> <a id="homepage" href="https://shinmera.github.io/binary-structures/">https://shinmera.github.io/binary-structures/</a> </div>   <div class="row"> <label for="bug-tracker">Bug Tracker:</label> <a id="bug-tracker" href="https://github.com/shinmera/binary-structures/issues">https://github.com/shinmera/binary-structures/issues</a> </div>   <div class="row"> <label for="sources">Sources:</label> <a id="sources" href="https://github.com/shinmera/binary-structures.git">https://github.com/shinmera/binary-structures.git</a> </div>  </section>    <section id="index"> <h2>Definition Index</h2> <ul> <li> <article class="definition package" id="PACKAGE ORG.SHIRAKUMO.BINARY-STRUCTURES"> <header> <h3> <a href="#PACKAGE%20ORG.SHIRAKUMO.BINARY-STRUCTURES">ORG.SHIRAKUMO.BINARY-STRUCTURES</a> </h3> <ul class="nicknames"></ul>  </header> <div class="docstring"><i>No documentation provided.</i></div> <ul class="definitions"> <li> <article class="definition class" id="CLASS ORG.SHIRAKUMO.BINARY-STRUCTURES:BOUNDS-CHECKED-IO-BACKEND"> <header> <span class="visibility">EXTERNAL</span> <span class="type">CLASS</span> <h4 class="name"> <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ABOUNDS-CHECKED-IO-BACKEND">BOUNDS-CHECKED-IO-BACKEND</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments"></ul>  <a class="source-link" href="https://github.com/shinmera/binary-structures/blob/HEAD/protocol.lisp#L713">Source</a>  </header> <div class="docstring"><pre>Class for IO-BACKENDs that require manual bounds checks.
+
+A subclass of this must provide a CHECK-AVAILABLE-SPACE function of
+one argument (octets to be consumed) in the lexical environment of the
+functions defined via READ-DEFUN and WRITE-DEFUN.
+
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AREAD-DEFUN" class="xref">READ-DEFUN</a>
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AWRITE-DEFUN" class="xref">WRITE-DEFUN</a>
+See <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-BACKEND" class="xref">IO-BACKEND (type)</a></pre></div> </article> </li>  <li> <article class="definition class" id="CLASS ORG.SHIRAKUMO.BINARY-STRUCTURES:IO-BACKEND"> <header> <span class="visibility">EXTERNAL</span> <span class="type">CLASS</span> <h4 class="name"> <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-BACKEND">IO-BACKEND</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments"></ul>  <a class="source-link" href="https://github.com/shinmera/binary-structures/blob/HEAD/protocol.lisp#L40">Source</a>  </header> <div class="docstring"><pre>Superclass for all storage backends supported by this library.
+
+A backend must implement methods for the functions READ-DEFUN,
+WRITE-DEFUN, CALL-READ-FORM, CALL-WRITE-FORM, READ-FORM, WRITE-FORM,
+INDEX-FORM, and SEEK-FORM to emit the correct forms to decode or
+encode io types as appropriate for the backend.
+
+The OFFSET slot is used to keep track of the current statically
+accumulated octet index as generated by emitted forms. This static
+slot offset is used to eliminate the spurious seeking operations.
+
+See <a href="#FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AUNSPECIFIC-P" class="xref">UNSPECIFIC-P</a>
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AOFFSET" class="xref">OFFSET</a>
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AREAD-DEFUN" class="xref">READ-DEFUN</a>
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AWRITE-DEFUN" class="xref">WRITE-DEFUN</a>
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ACALL-READ-FORM" class="xref">CALL-READ-FORM</a>
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ACALL-WRITE-FORM" class="xref">CALL-WRITE-FORM</a>
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AREAD-FORM" class="xref">READ-FORM</a>
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AWRITE-FORM" class="xref">WRITE-FORM</a>
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AINDEX-FORM" class="xref">INDEX-FORM</a>
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ASEEK-FORM" class="xref">SEEK-FORM</a>
+See <a href="#MACRO-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ADEFINE-IO-BACKEND" class="xref">DEFINE-IO-BACKEND</a>
+See <a href="#FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ALIST-IO-BACKENDS" class="xref">LIST-IO-BACKENDS</a>
+See <a href="#MACRO-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ADEFINE-IO-DISPATCH" class="xref">DEFINE-IO-DISPATCH</a>
+See <a href="#MACRO-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ADEFINE-IO-BACKEND-FUNCTION" class="xref">DEFINE-IO-BACKEND-FUNCTION</a>
+See <a href="#MACRO-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ADEFINE-IO-FUNCTIONS" class="xref">DEFINE-IO-FUNCTIONS</a></pre></div> </article> </li>  <li> <article class="definition class" id="CLASS ORG.SHIRAKUMO.BINARY-STRUCTURES:IO-CASE"> <header> <span class="visibility">EXTERNAL</span> <span class="type">CLASS</span> <h4 class="name"> <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-CASE">IO-CASE</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments"></ul>  <a class="source-link" href="https://github.com/shinmera/binary-structures/blob/HEAD/protocol.lisp#L383">Source</a>  </header> <div class="docstring"><pre>Representation of an enum-like value dispatch.
+
+Each CASE must be a possible value of the VALUE-TYPE to match against
+and either a constant to use as the associated value or an IO-TYPE
+designator to describe how to parse the associated value.
+
+This type parses from the representation
+
+  (CASE VALUE-TYPE (MATCH FORM)*)
+
+For example:
+
+  (case uint8
+    (1 :linux)
+    (2 :windows)
+    (3 :darwin))
+
+Defines a standard enum-like association. However, you may also use
+other IO-TYPEs in the FORM:
+
+  (case uint8
+    (1 image)
+    (2 music-track)
+    (3 video))
+
+Note that in order for the inverse writing operation to work, the
+order of the entries matters and must usually be the reverse of what
+would naturally be listed. Meaning that if SUB is a subtype of SUPER,
+then SUPER must be listed /after/ SUB, or else SUPER will match both,
+causing SUB to never be hit.
+
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AVALUE-TYPE" class="xref">VALUE-TYPE</a>
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ACASES" class="xref">CASES</a>
+See <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-TYPECASE" class="xref">IO-TYPECASE (type)</a>
+See <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-TYPE" class="xref">IO-TYPE (type)</a></pre></div> </article> </li>  <li> <article class="definition class" id="CLASS ORG.SHIRAKUMO.BINARY-STRUCTURES:IO-FLOAT"> <header> <span class="visibility">EXTERNAL</span> <span class="type">CLASS</span> <h4 class="name"> <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-FLOAT">IO-FLOAT</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments"></ul>  <a class="source-link" href="https://github.com/shinmera/binary-structures/blob/HEAD/protocol.lisp#L261">Source</a>  </header> <div class="docstring"><pre>Type class for floating point IO-TYPEs.
+
+Only IEEE floating point values are represented, depending on
+implementation support with 2, 4, 8, and 16 octets.
+
+This type parses from the representation
+
+  (FLOAT [OCTET-SIZE])
+
+With OCTET-SIZE defaulting to 4.
+
+The following shorthands are also defined:
+
+  FLOAT [16/32/64/128] [/-BE]
+
+Where FLOAT16-BE designates a &quot;16-bit short-float in
+big-endian&quot; and FLOAT32 designates a &quot;32-bit single-float in
+little-endian&quot;.
+
+See <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ANUMERIC-TYPE" class="xref">NUMERIC-TYPE (type)</a></pre></div> </article> </li>  <li> <article class="definition class" id="CLASS ORG.SHIRAKUMO.BINARY-STRUCTURES:IO-FOREIGN-POINTER"> <header> <span class="visibility">EXTERNAL</span> <span class="type">CLASS</span> <h4 class="name"> <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-FOREIGN-POINTER">IO-FOREIGN-POINTER</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments"></ul>  <a class="source-link" href="https://github.com/shinmera/binary-structures/blob/HEAD/foreign-pointer.lisp#L9">Source</a>  </header> <div class="docstring"><pre>An IO-BACKEND for foreign / memory pointers.
+
+You must pass in a SIZE along with the pointer that designates the
+number of octets available in the buffer.
+
+See <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-BACKEND" class="xref">IO-BACKEND (type)</a></pre></div> </article> </li>  <li> <article class="definition class" id="CLASS ORG.SHIRAKUMO.BINARY-STRUCTURES:IO-INTEGER"> <header> <span class="visibility">EXTERNAL</span> <span class="type">CLASS</span> <h4 class="name"> <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-INTEGER">IO-INTEGER</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments"></ul>  <a class="source-link" href="https://github.com/shinmera/binary-structures/blob/HEAD/protocol.lisp#L238">Source</a>  </header> <div class="docstring"><pre>Type class for integer IO-TYPEs.
+
+If an integer is SIGNED-P, then its representation uses two's
+complement to represent the sign.
+
+This type parses from the representation
+
+  (INTEGER [OCTET-SIZE] [:SIGNED/:UNSIGNED] [ORDER])
+
+The following shorthands are also defined:
+
+  [S/U] INT [8/16/32/64/128] [/-BE]
+
+Where UINT16-BE designates an &quot;unsigned 16-bit integer in
+big-endian&quot; and SINT32 designates a &quot;signed 32-bit integer in
+little-endian&quot;.
+
+See <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ANUMERIC-TYPE" class="xref">NUMERIC-TYPE (type)</a></pre></div> </article> </li>  <li> <article class="definition class" id="CLASS ORG.SHIRAKUMO.BINARY-STRUCTURES:IO-OCTET-VECTOR"> <header> <span class="visibility">EXTERNAL</span> <span class="type">CLASS</span> <h4 class="name"> <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-OCTET-VECTOR">IO-OCTET-VECTOR</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments"></ul>  <a class="source-link" href="https://github.com/shinmera/binary-structures/blob/HEAD/octet-vector.lisp#L9">Source</a>  </header> <div class="docstring"><pre>An IO-BACKEND for octet / unsigned-byte 8 VECTORs.
+
+Dispatches both from SIMPLE-ARRAYs and ARRAYs. In the latter case the
+array is copied to a SIMPLE-ARRAY first, however. You may pass both a
+START and END to designate a subsequence.
+
+See <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-BACKEND" class="xref">IO-BACKEND (type)</a></pre></div> </article> </li>  <li> <article class="definition class" id="CLASS ORG.SHIRAKUMO.BINARY-STRUCTURES:IO-STREAM"> <header> <span class="visibility">EXTERNAL</span> <span class="type">CLASS</span> <h4 class="name"> <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-STREAM">IO-STREAM</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments"></ul>  <a class="source-link" href="https://github.com/shinmera/binary-structures/blob/HEAD/stream.lisp#L9">Source</a>  </header> <div class="docstring"><pre>An IO-BACKEND for STREAMs.
+
+Dispatches both from STREAMs and PATHNAMEs.
+
+See <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-BACKEND" class="xref">IO-BACKEND (type)</a></pre></div> </article> </li>  <li> <article class="definition class" id="CLASS ORG.SHIRAKUMO.BINARY-STRUCTURES:IO-STRING"> <header> <span class="visibility">EXTERNAL</span> <span class="type">CLASS</span> <h4 class="name"> <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-STRING">IO-STRING</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments"></ul>  <a class="source-link" href="https://github.com/shinmera/binary-structures/blob/HEAD/protocol.lisp#L352">Source</a>  </header> <div class="docstring"><pre>Type class to represent a character string.
+
+This type parses from the representation
+
+  (STRING ELEMENT-COUNT [ENCODING])
+
+The encoding defaults to UTF-8.
+
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AELEMENT-COUNT" class="xref">ELEMENT-COUNT</a>
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AENCODING" class="xref">ENCODING</a>
+See <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-TYPE" class="xref">IO-TYPE (type)</a></pre></div> </article> </li>  <li> <article class="definition class" id="CLASS ORG.SHIRAKUMO.BINARY-STRUCTURES:IO-STRUCTURE"> <header> <span class="visibility">EXTERNAL</span> <span class="type">CLASS</span> <h4 class="name"> <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-STRUCTURE">IO-STRUCTURE</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments"></ul>  <a class="source-link" href="https://github.com/shinmera/binary-structures/blob/HEAD/protocol.lisp#L495">Source</a>  </header> <div class="docstring"><pre>Representation of some structure composed out of multiple values.
+
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AVALUE-TYPE" class="xref">VALUE-TYPE</a>
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ACONSTRUCTOR" class="xref">CONSTRUCTOR</a>
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ASLOTS" class="xref">SLOTS</a>
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ANAME" class="xref">NAME</a>
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AFIND-SLOT" class="xref">FIND-SLOT</a>
+See <a href="#MACRO-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ADEFINE-IO-STRUCTURE" class="xref">DEFINE-IO-STRUCTURE</a>
+See <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-TYPE" class="xref">IO-TYPE (type)</a></pre></div> </article> </li>  <li> <article class="definition class" id="CLASS ORG.SHIRAKUMO.BINARY-STRUCTURES:IO-STRUCTURE-MAGIC"> <header> <span class="visibility">EXTERNAL</span> <span class="type">CLASS</span> <h4 class="name"> <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-STRUCTURE-MAGIC">IO-STRUCTURE-MAGIC</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments"></ul>  <a class="source-link" href="https://github.com/shinmera/binary-structures/blob/HEAD/protocol.lisp#L611">Source</a>  </header> <div class="docstring"><pre>Representation of a constant / &quot;magic&quot; value within a structure or some padding.
+
+If the VALUE-TYPE of the slot is known, a value of that type is
+read. If the DEFAULT-VALUE is also known, the value is compared and if
+not EQUALP, an error of type MAGIC-VALUE-MISMATCHED is signalled. If
+the DEFAULT-VALUE is known but no explicit VALUE-TYPE is set, the
+DEFAULT-VALUE must be a STRING or OCTET-VECTOR, a sequence of
+equivalent length of which is parsed for comparison. If a VALUE-TYPE
+is known but no DEFAULT-VALUE, the value is simply discarded.
+
+See <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-STRUCTURE-SLOT" class="xref">IO-STRUCTURE-SLOT (type)</a></pre></div> </article> </li>  <li> <article class="definition class" id="CLASS ORG.SHIRAKUMO.BINARY-STRUCTURES:IO-STRUCTURE-SLOT"> <header> <span class="visibility">EXTERNAL</span> <span class="type">CLASS</span> <h4 class="name"> <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-STRUCTURE-SLOT">IO-STRUCTURE-SLOT</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments"></ul>  <a class="source-link" href="https://github.com/shinmera/binary-structures/blob/HEAD/protocol.lisp#L590">Source</a>  </header> <div class="docstring"><pre>Representation of a single slot in an IO-STRUCTURE.
+
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AVALUE-TYPE" class="xref">VALUE-TYPE</a>
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AOCTET-SIZE" class="xref">OCTET-SIZE</a>
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AOFFSET" class="xref">OFFSET</a>
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ANAME" class="xref">NAME</a>
+See <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-STRUCTURE-MAGIC" class="xref">IO-STRUCTURE-MAGIC (type)</a>
+See <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-STRUCTURE" class="xref">IO-STRUCTURE (type)</a></pre></div> </article> </li>  <li> <article class="definition class" id="CLASS ORG.SHIRAKUMO.BINARY-STRUCTURES:IO-TYPE"> <header> <span class="visibility">EXTERNAL</span> <span class="type">CLASS</span> <h4 class="name"> <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-TYPE">IO-TYPE</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments"></ul>  <a class="source-link" href="https://github.com/shinmera/binary-structures/blob/HEAD/protocol.lisp#L43">Source</a>  </header> <div class="docstring"><pre>Superclass for all known type classes for IO.
+
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AREAD-DEFUN" class="xref">READ-DEFUN</a>
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AWRITE-DEFUN" class="xref">WRITE-DEFUN</a>
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ACALL-READ-FORM" class="xref">CALL-READ-FORM</a>
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ACALL-WRITE-FORM" class="xref">CALL-WRITE-FORM</a>
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AREAD-FORM" class="xref">READ-FORM</a>
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AWRITE-FORM" class="xref">WRITE-FORM</a>
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ALISP-TYPE" class="xref">LISP-TYPE</a>
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ADEFAULT-VALUE" class="xref">DEFAULT-VALUE</a>
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AOCTET-SIZE" class="xref">OCTET-SIZE</a>
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AREAD-DEFUN" class="xref">READ-DEFUN</a>
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AWRITE-DEFUN" class="xref">WRITE-DEFUN</a>
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ACALL-READ-FORM" class="xref">CALL-READ-FORM</a>
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ACALL-WRITE-FORM" class="xref">CALL-WRITE-FORM</a>
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AREAD-FORM" class="xref">READ-FORM</a>
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AWRITE-FORM" class="xref">WRITE-FORM</a>
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AINITARGS" class="xref">INITARGS</a>
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3APARSE-IO-TYPE" class="xref">PARSE-IO-TYPE</a>
+See <a href="#FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-TYPE" class="xref">IO-TYPE</a>
+See <a href="#MACRO-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ADEFINE-IO-TYPE" class="xref">DEFINE-IO-TYPE</a>
+See <a href="#FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ALIST-IO-TYPES" class="xref">LIST-IO-TYPES</a>
+See <a href="#MACRO-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ADEFINE-IO-DISPATCH-FUNCTION" class="xref">DEFINE-IO-DISPATCH-FUNCTION</a>
+See <a href="#MACRO-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ADEFINE-IO-BACKEND-FUNCTION" class="xref">DEFINE-IO-BACKEND-FUNCTION</a>
+See <a href="#MACRO-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ADEFINE-IO-FUNCTIONS" class="xref">DEFINE-IO-FUNCTIONS</a></pre></div> </article> </li>  <li> <article class="definition class" id="CLASS ORG.SHIRAKUMO.BINARY-STRUCTURES:IO-TYPECASE"> <header> <span class="visibility">EXTERNAL</span> <span class="type">CLASS</span> <h4 class="name"> <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-TYPECASE">IO-TYPECASE</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments"></ul>  <a class="source-link" href="https://github.com/shinmera/binary-structures/blob/HEAD/protocol.lisp#L460">Source</a>  </header> <div class="docstring"><pre>Representation of some runtime type dispatch.
+
+This is useful to implement optional segments in an IO-TYPE or to
+dispatch parsing based on an earlier part of the parsing state.
+
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ACASES" class="xref">CASES</a>
+See <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-VALUE" class="xref">IO-VALUE (type)</a></pre></div> </article> </li>  <li> <article class="definition class" id="CLASS ORG.SHIRAKUMO.BINARY-STRUCTURES:IO-VALUE"> <header> <span class="visibility">EXTERNAL</span> <span class="type">CLASS</span> <h4 class="name"> <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-VALUE">IO-VALUE</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments"></ul>  <a class="source-link" href="https://github.com/shinmera/binary-structures/blob/HEAD/protocol.lisp#L442">Source</a>  </header> <div class="docstring"><pre>Representation of some form used purely for its runtime value.
+
+This always has an unknown real type and size, and is the default type
+representation for parsing any CONS-based IO-TYPE.
+
+Meaning: (parse-io-type '(foo)) ==&gt; IO-VALUE
+
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AFORM" class="xref">FORM</a>
+See <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-TYPE" class="xref">IO-TYPE (type)</a></pre></div> </article> </li>  <li> <article class="definition class" id="CLASS ORG.SHIRAKUMO.BINARY-STRUCTURES:IO-VECTOR"> <header> <span class="visibility">EXTERNAL</span> <span class="type">CLASS</span> <h4 class="name"> <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-VECTOR">IO-VECTOR</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments"></ul>  <a class="source-link" href="https://github.com/shinmera/binary-structures/blob/HEAD/protocol.lisp#L284">Source</a>  </header> <div class="docstring"><pre>Type class to represent a sequence of other values.
+
+This type parses from the representation
+
+  (VECTOR ELEMENT-TYPE [ELEMENT-COUNT] [ELEMENT-OFFSET])
+
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AELEMENT-TYPE" class="xref">ELEMENT-TYPE</a>
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AELEMENT-COUNT" class="xref">ELEMENT-COUNT</a>
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AELEMENT-OFFSET" class="xref">ELEMENT-OFFSET</a>
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ASTRIDE" class="xref">STRIDE</a>
+See <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-TYPE" class="xref">IO-TYPE (type)</a></pre></div> </article> </li>  <li> <article class="definition class" id="CLASS ORG.SHIRAKUMO.BINARY-STRUCTURES:NUMERIC-TYPE"> <header> <span class="visibility">EXTERNAL</span> <span class="type">CLASS</span> <h4 class="name"> <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ANUMERIC-TYPE">NUMERIC-TYPE</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments"></ul>  <a class="source-link" href="https://github.com/shinmera/binary-structures/blob/HEAD/protocol.lisp#L223">Source</a>  </header> <div class="docstring"><pre>Type class for numerical IO-TYPEs.
+
+Every numeric type has a fixed OCTET-SIZE and a byte ORDER, which
+defaults to :LITTLE-ENDIAN.
+
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AOCTET-SIZE" class="xref">OCTET-SIZE</a>
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AORDER" class="xref">ORDER</a>
+See <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-TYPE" class="xref">IO-TYPE (type)</a></pre></div> </article> </li>  <li> <article class="definition class" id="CLASS ORG.SHIRAKUMO.BINARY-STRUCTURES:TOP-TYPE"> <header> <span class="visibility">EXTERNAL</span> <span class="type">CLASS</span> <h4 class="name"> <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ATOP-TYPE">TOP-TYPE</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments"></ul>  <a class="source-link" href="https://github.com/shinmera/binary-structures/blob/HEAD/protocol.lisp#L216">Source</a>  </header> <div class="docstring"><pre>Type class for an ambiguous IO-TYPE.
+
+See <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-TYPE" class="xref">IO-TYPE (type)</a></pre></div> </article> </li>  <li> <article class="definition condition" id="CONDITION ORG.SHIRAKUMO.BINARY-STRUCTURES:BINARY-STRUCTURES-CONDITION"> <header> <span class="visibility">EXTERNAL</span> <span class="type">CONDITION</span> <h4 class="name"> <a href="#CONDITION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ABINARY-STRUCTURES-CONDITION">BINARY-STRUCTURES-CONDITION</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments"></ul>  <a class="source-link" href="https://github.com/shinmera/binary-structures/blob/HEAD/protocol.lisp#L15">Source</a>  </header> <div class="docstring"><pre>Supertype for all conditions signalled by this library.
+
+See <a href="#CONDITION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ANO-SUCH-IO-TYPE" class="xref">NO-SUCH-IO-TYPE</a>
+See <a href="#CONDITION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AEND-OF-STORAGE" class="xref">END-OF-STORAGE</a>
+See <a href="#CONDITION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AUNKNOWN-VALUE" class="xref">UNKNOWN-VALUE</a>
+See <a href="#CONDITION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ANO-SUCH-SLOT" class="xref">NO-SUCH-SLOT</a></pre></div> </article> </li>  <li> <article class="definition condition" id="CONDITION ORG.SHIRAKUMO.BINARY-STRUCTURES:END-OF-STORAGE"> <header> <span class="visibility">EXTERNAL</span> <span class="type">CONDITION</span> <h4 class="name"> <a href="#CONDITION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AEND-OF-STORAGE">END-OF-STORAGE</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments"></ul>  <a class="source-link" href="https://github.com/shinmera/binary-structures/blob/HEAD/protocol.lisp#L22">Source</a>  </header> <div class="docstring"><pre>Error signalled when the backend is not large enough to contain the requested type.
+
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AINDEX" class="xref">INDEX</a>
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AEND" class="xref">END</a>
+See <a href="#CONDITION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ABINARY-STRUCTURES-CONDITION" class="xref">BINARY-STRUCTURES-CONDITION (type)</a></pre></div> </article> </li>  <li> <article class="definition condition" id="CONDITION ORG.SHIRAKUMO.BINARY-STRUCTURES:NO-SUCH-IO-TYPE"> <header> <span class="visibility">EXTERNAL</span> <span class="type">CONDITION</span> <h4 class="name"> <a href="#CONDITION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ANO-SUCH-IO-TYPE">NO-SUCH-IO-TYPE</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments"></ul>  <a class="source-link" href="https://github.com/shinmera/binary-structures/blob/HEAD/protocol.lisp#L18">Source</a>  </header> <div class="docstring"><pre>Error signalled when an undefined IO type is referenced.
+
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ADESIGNATOR" class="xref">DESIGNATOR</a>
+See <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-TYPE" class="xref">IO-TYPE (type)</a>
+See <a href="#FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-TYPE" class="xref">IO-TYPE</a>
+See <a href="#CONDITION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ABINARY-STRUCTURES-CONDITION" class="xref">BINARY-STRUCTURES-CONDITION (type)</a></pre></div> </article> </li>  <li> <article class="definition condition" id="CONDITION ORG.SHIRAKUMO.BINARY-STRUCTURES:NO-SUCH-SLOT"> <header> <span class="visibility">EXTERNAL</span> <span class="type">CONDITION</span> <h4 class="name"> <a href="#CONDITION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ANO-SUCH-SLOT">NO-SUCH-SLOT</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments"></ul>  <a class="source-link" href="https://github.com/shinmera/binary-structures/blob/HEAD/protocol.lisp#L34">Source</a>  </header> <div class="docstring"><i>No documentation provided.</i></div> </article> </li>  <li> <article class="definition condition" id="CONDITION ORG.SHIRAKUMO.BINARY-STRUCTURES:UNKNOWN-VALUE"> <header> <span class="visibility">EXTERNAL</span> <span class="type">CONDITION</span> <h4 class="name"> <a href="#CONDITION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AUNKNOWN-VALUE">UNKNOWN-VALUE</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments"></ul>  <a class="source-link" href="https://github.com/shinmera/binary-structures/blob/HEAD/protocol.lisp#L28">Source</a>  </header> <div class="docstring"><pre>Error signalled when a value is encoded or decoded that was not declared in the type.
+
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AVALUE" class="xref">VALUE</a>
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AACCEPTED" class="xref">ACCEPTED</a>
+See <a href="#CONDITION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ABINARY-STRUCTURES-CONDITION" class="xref">BINARY-STRUCTURES-CONDITION (type)</a></pre></div> </article> </li>  <li> <article class="definition type-definition" id="TYPE ORG.SHIRAKUMO.BINARY-STRUCTURES:INDEX"> <header> <span class="visibility">EXTERNAL</span> <span class="type">TYPE-DEFINITION</span> <h4 class="name"> <a href="#TYPE%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AINDEX">INDEX</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments"></ul>  <a class="source-link" href="file:///home/linus/Projects/c/sbcl/src/compiler/deftype.lisp#12:0">Source</a>  </header> <div class="docstring"><i>No documentation provided.</i></div> </article> </li>  <li> <article class="definition function callable" id="FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:IO-TYPE"> <header> <span class="visibility">EXTERNAL</span> <span class="type">FUNCTION</span> <h4 class="name"> <a href="#FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-TYPE">IO-TYPE</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments">  <li class="argument">NAME</li>    <li class="argument lambda-list-keyword">&amp;OPTIONAL</li>    <li class="argument">ERRORP</li>  </ul>  <a class="source-link" href="https://github.com/shinmera/binary-structures/blob/HEAD/protocol.lisp#L116">Source</a>  </header> <div class="docstring"><pre>Access the IO-TYPE instance associated with the given name.
+
+When reading:
+If there is no type of the given name and ERRORP is non-NIL, a
+condition of type NO-SUCH-IO-TYPE is signalled. The CONTINUE restart
+will cause a TOP-TYPE to be returned. The USE-VALUE restart may be
+used to supply an alternate type instance. If ERRORP is NIL, NIL is
+returned instead.
+
+When setting:
+If the value is NIL, the name is removed from the IO-TYPE directory.
+
+See <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-TYPE" class="xref">IO-TYPE (type)</a>
+See <a href="#MACRO-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ADEFINE-IO-TYPE" class="xref">DEFINE-IO-TYPE</a></pre></div> </article> </li>  <li> <article class="definition function callable" id="FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:(SETF IO-TYPE)"> <header> <span class="visibility">EXTERNAL</span> <span class="type">FUNCTION</span> <h4 class="name"> <a href="#FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3A%28SETF%20IO-TYPE%29">(SETF IO-TYPE)</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments">  <li class="argument">VALUE</li>    <li class="argument">NAME</li>  </ul>  <a class="source-link" href="https://github.com/shinmera/binary-structures/blob/HEAD/protocol.lisp#L128">Source</a>  </header> <div class="docstring"><i>No documentation provided.</i></div> </article> </li>  <li> <article class="definition function callable" id="FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:LIST-IO-BACKENDS"> <header> <span class="visibility">EXTERNAL</span> <span class="type">FUNCTION</span> <h4 class="name"> <a href="#FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ALIST-IO-BACKENDS">LIST-IO-BACKENDS</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments"></ul>  <a class="source-link" href="https://github.com/shinmera/binary-structures/blob/HEAD/protocol.lisp#L141">Source</a>  </header> <div class="docstring"><pre>Returns a list of names of all known IO-BACKEND types.
+
+See <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-BACKEND" class="xref">IO-BACKEND (type)</a>
+See <a href="#MACRO-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ADEFINE-IO-BACKEND" class="xref">DEFINE-IO-BACKEND</a></pre></div> </article> </li>  <li> <article class="definition function callable" id="FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:LIST-IO-TYPES"> <header> <span class="visibility">EXTERNAL</span> <span class="type">FUNCTION</span> <h4 class="name"> <a href="#FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ALIST-IO-TYPES">LIST-IO-TYPES</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments"></ul>  <a class="source-link" href="https://github.com/shinmera/binary-structures/blob/HEAD/protocol.lisp#L138">Source</a>  </header> <div class="docstring"><pre>Returns a list of names of all known IO-TYPE instances.
+
+See <a href="#MACRO-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ADEFINE-IO-TYPE" class="xref">DEFINE-IO-TYPE</a>
+See <a href="#FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-TYPE" class="xref">IO-TYPE</a>
+See <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-TYPE" class="xref">IO-TYPE (type)</a></pre></div> </article> </li>  <li> <article class="definition function callable" id="FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:REMOVE-IO-DISPATCH"> <header> <span class="visibility">EXTERNAL</span> <span class="type">FUNCTION</span> <h4 class="name"> <a href="#FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AREMOVE-IO-DISPATCH">REMOVE-IO-DISPATCH</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments">  <li class="argument">TYPE</li>    <li class="argument">LISP-TYPE</li>  </ul>  <a class="source-link" href="https://github.com/shinmera/binary-structures/blob/HEAD/protocol.lisp#L156">Source</a>  </header> <div class="docstring"><i>No documentation provided.</i></div> </article> </li>  <li> <article class="definition function callable" id="FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:UNSPECIFIC-P"> <header> <span class="visibility">EXTERNAL</span> <span class="type">FUNCTION</span> <h4 class="name"> <a href="#FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AUNSPECIFIC-P">UNSPECIFIC-P</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments">  <li class="argument lambda-list-keyword">&amp;REST</li>    <li class="argument">THINGS</li>  </ul>  <a class="source-link" href="https://github.com/shinmera/binary-structures/blob/HEAD/toolkit.lisp#L27">Source</a>  </header> <div class="docstring"><pre>Used to determine whether a value designates a static quantity.
+
+If any of the THINGS is NIL, returns *
+If any of the THINGS is not a number, returns the thing
+
+Generally, * is used to designate an unknown quantity. Values that
+aren't a number are runtime expressions that are unknown quantities at
+compile-time, to be resolved later.</pre></div> </article> </li>  <li> <article class="definition generic-function callable" id="GENERIC-FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:ACCEPTED"> <header> <span class="visibility">EXTERNAL</span> <span class="type">GENERIC-FUNCTION</span> <h4 class="name"> <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AACCEPTED">ACCEPTED</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments">  <li class="argument">CONDITION</li>  </ul>  </header> <div class="docstring"><pre>Returns the set of values that would be acceptable.
+
+See <a href="#CONDITION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AUNKNOWN-VALUE" class="xref">UNKNOWN-VALUE (type)</a></pre></div> </article> </li>  <li> <article class="definition generic-function callable" id="GENERIC-FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:CALL-READ-FORM"> <header> <span class="visibility">EXTERNAL</span> <span class="type">GENERIC-FUNCTION</span> <h4 class="name"> <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ACALL-READ-FORM">CALL-READ-FORM</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments">  <li class="argument">BACKEND</li>    <li class="argument">IO-TYPE</li>  </ul>  <a class="source-link" href="https://github.com/shinmera/binary-structures/blob/HEAD/protocol.lisp#L47">Source</a>  </header> <div class="docstring"><pre>Generate a form to call the reader function associated with the given IO-TYPE under the IO-BACKEND.
+
+The form may only be valid within the context established by
+READ-DEFUN of the same IO-BACKEND and may thus make use of local
+variables and functions.
+
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AREAD-DEFUN" class="xref">READ-DEFUN</a>
+See <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-BACKEND" class="xref">IO-BACKEND</a>
+See <a href="#FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-TYPE" class="xref">IO-TYPE</a></pre></div> </article> </li>  <li> <article class="definition generic-function callable" id="GENERIC-FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:CALL-WRITE-FORM"> <header> <span class="visibility">EXTERNAL</span> <span class="type">GENERIC-FUNCTION</span> <h4 class="name"> <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ACALL-WRITE-FORM">CALL-WRITE-FORM</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments">  <li class="argument">BACKEND</li>    <li class="argument">IO-TYPE</li>    <li class="argument">VALUE-VARIABLE</li>  </ul>  <a class="source-link" href="https://github.com/shinmera/binary-structures/blob/HEAD/protocol.lisp#L48">Source</a>  </header> <div class="docstring"><pre>Generate a form to call the writer function associated with the given IO-TYPE under the IO-BACKEND for the VALUE-VARIABLE.
+
+The form may only be valid within the context established by
+WRITE-DEFUN of the same IO-BACKEND and may thus make use of local
+variables and functions.
+
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AWRITE-DEFUN" class="xref">WRITE-DEFUN</a>
+See <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-BACKEND" class="xref">IO-BACKEND</a>
+See <a href="#FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-TYPE" class="xref">IO-TYPE</a></pre></div> </article> </li>  <li> <article class="definition generic-function callable" id="GENERIC-FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:CASES"> <header> <span class="visibility">EXTERNAL</span> <span class="type">GENERIC-FUNCTION</span> <h4 class="name"> <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ACASES">CASES</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments">  <li class="argument">OBJECT</li>  </ul>  </header> <div class="docstring"><pre>Accesses the list of case forms.
+
+Each entry in the list must be composed of a MATCH and a FORM.
+
+See <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-CASE" class="xref">IO-CASE (type)</a>
+See <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-TYPECASE" class="xref">IO-TYPECASE (type)</a></pre></div> </article> </li>  <li> <article class="definition generic-function callable" id="GENERIC-FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:(SETF CASES)"> <header> <span class="visibility">EXTERNAL</span> <span class="type">GENERIC-FUNCTION</span> <h4 class="name"> <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3A%28SETF%20CASES%29">(SETF CASES)</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments">  <li class="argument">NEW-VALUE</li>    <li class="argument">OBJECT</li>  </ul>  </header> <div class="docstring"><i>No documentation provided.</i></div> </article> </li>  <li> <article class="definition generic-function callable" id="GENERIC-FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:CONSTRUCTOR"> <header> <span class="visibility">EXTERNAL</span> <span class="type">GENERIC-FUNCTION</span> <h4 class="name"> <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ACONSTRUCTOR">CONSTRUCTOR</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments">  <li class="argument">OBJECT</li>  </ul>  </header> <div class="docstring"><pre>Accesses the name of the lisp structure constructor function.
+
+See <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-STRUCTURE" class="xref">IO-STRUCTURE (type)</a></pre></div> </article> </li>  <li> <article class="definition generic-function callable" id="GENERIC-FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:(SETF CONSTRUCTOR)"> <header> <span class="visibility">EXTERNAL</span> <span class="type">GENERIC-FUNCTION</span> <h4 class="name"> <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3A%28SETF%20CONSTRUCTOR%29">(SETF CONSTRUCTOR)</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments">  <li class="argument">NEW-VALUE</li>    <li class="argument">OBJECT</li>  </ul>  </header> <div class="docstring"><i>No documentation provided.</i></div> </article> </li>  <li> <article class="definition generic-function callable" id="GENERIC-FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:DEFAULT-VALUE"> <header> <span class="visibility">EXTERNAL</span> <span class="type">GENERIC-FUNCTION</span> <h4 class="name"> <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ADEFAULT-VALUE">DEFAULT-VALUE</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments">  <li class="argument">IO-TYPE</li>  </ul>  <a class="source-link" href="https://github.com/shinmera/binary-structures/blob/HEAD/protocol.lisp#L54">Source</a>  </header> <div class="docstring"><pre>Returns a suitable lisp default value form for the given io-type.
+
+See <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-TYPE" class="xref">IO-TYPE (type)</a></pre></div> </article> </li>  <li> <article class="definition generic-function callable" id="GENERIC-FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:(SETF DEFAULT-VALUE)"> <header> <span class="visibility">EXTERNAL</span> <span class="type">GENERIC-FUNCTION</span> <h4 class="name"> <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3A%28SETF%20DEFAULT-VALUE%29">(SETF DEFAULT-VALUE)</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments">  <li class="argument">NEW-VALUE</li>    <li class="argument">OBJECT</li>  </ul>  </header> <div class="docstring"><i>No documentation provided.</i></div> </article> </li>  <li> <article class="definition generic-function callable" id="GENERIC-FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:DESIGNATOR"> <header> <span class="visibility">EXTERNAL</span> <span class="type">GENERIC-FUNCTION</span> <h4 class="name"> <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ADESIGNATOR">DESIGNATOR</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments">  <li class="argument">CONDITION</li>  </ul>  </header> <div class="docstring"><pre>Returns the designator of the io type.
+
+See <a href="#CONDITION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ANO-SUCH-IO-TYPE" class="xref">NO-SUCH-IO-TYPE</a></pre></div> </article> </li>  <li> <article class="definition generic-function callable" id="GENERIC-FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:ELEMENT-COUNT"> <header> <span class="visibility">EXTERNAL</span> <span class="type">GENERIC-FUNCTION</span> <h4 class="name"> <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AELEMENT-COUNT">ELEMENT-COUNT</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments">  <li class="argument">OBJECT</li>  </ul>  </header> <div class="docstring"><pre>Accesses the length of the IO-VECTOR.
+
+This is a quantity (see SPECIFIC-P) and may thus be statically known,
+or be a form to determine the length of the vector at runtime.
+
+If the form is the name of another IO-TYPE, the IO-TYPE is
+read/written to obtain the actual count.
+
+Special attention must be given if the ELEMENT-COUNT of an IO-VECTOR
+is set to *, in which case the vector is said to consume all remaining
+available space in the storage. For IO-STRINGS, the * designates that
+the string should be null-terminated.
+
+See <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-VECTOR" class="xref">IO-VECTOR (type)</a>
+See <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-STRING" class="xref">IO-STRING (type)</a></pre></div> </article> </li>  <li> <article class="definition generic-function callable" id="GENERIC-FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:(SETF ELEMENT-COUNT)"> <header> <span class="visibility">EXTERNAL</span> <span class="type">GENERIC-FUNCTION</span> <h4 class="name"> <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3A%28SETF%20ELEMENT-COUNT%29">(SETF ELEMENT-COUNT)</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments">  <li class="argument">NEW-VALUE</li>    <li class="argument">OBJECT</li>  </ul>  </header> <div class="docstring"><i>No documentation provided.</i></div> </article> </li>  <li> <article class="definition generic-function callable" id="GENERIC-FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:ELEMENT-OFFSET"> <header> <span class="visibility">EXTERNAL</span> <span class="type">GENERIC-FUNCTION</span> <h4 class="name"> <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AELEMENT-OFFSET">ELEMENT-OFFSET</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments">  <li class="argument">OBJECT</li>  </ul>  </header> <div class="docstring"><pre>Accesses the offset of each element in the IO-VECTOR.
+
+This may be a form that, when evaluated under a lexical
+environment with I bound to the current index, yields an index at
+which the element starts. STRIDE may be an expression that yields the
+number of octets between any two elements in the sequence.
+
+See <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-VECTOR" class="xref">IO-VECTOR (type)</a></pre></div> </article> </li>  <li> <article class="definition generic-function callable" id="GENERIC-FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:(SETF ELEMENT-OFFSET)"> <header> <span class="visibility">EXTERNAL</span> <span class="type">GENERIC-FUNCTION</span> <h4 class="name"> <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3A%28SETF%20ELEMENT-OFFSET%29">(SETF ELEMENT-OFFSET)</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments">  <li class="argument">NEW-VALUE</li>    <li class="argument">OBJECT</li>  </ul>  </header> <div class="docstring"><i>No documentation provided.</i></div> </article> </li>  <li> <article class="definition generic-function callable" id="GENERIC-FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:ELEMENT-TYPE"> <header> <span class="visibility">EXTERNAL</span> <span class="type">GENERIC-FUNCTION</span> <h4 class="name"> <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AELEMENT-TYPE">ELEMENT-TYPE</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments">  <li class="argument">OBJECT</li>  </ul>  </header> <div class="docstring"><pre>Accesses the type of each element in an IO-VECTOR.
+
+The type should be some IO-TYPE designator and must be constant for
+every element.
+
+See <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-VECTOR" class="xref">IO-VECTOR (type)</a></pre></div> </article> </li>  <li> <article class="definition generic-function callable" id="GENERIC-FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:(SETF ELEMENT-TYPE)"> <header> <span class="visibility">EXTERNAL</span> <span class="type">GENERIC-FUNCTION</span> <h4 class="name"> <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3A%28SETF%20ELEMENT-TYPE%29">(SETF ELEMENT-TYPE)</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments">  <li class="argument">NEW-VALUE</li>    <li class="argument">OBJECT</li>  </ul>  </header> <div class="docstring"><i>No documentation provided.</i></div> </article> </li>  <li> <article class="definition generic-function callable" id="GENERIC-FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:ENCODING"> <header> <span class="visibility">EXTERNAL</span> <span class="type">GENERIC-FUNCTION</span> <h4 class="name"> <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AENCODING">ENCODING</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments">  <li class="argument">OBJECT</li>  </ul>  </header> <div class="docstring"><pre>Accesses the encoding of the string.
+
+The encoding also defines the byte order. Please see BABEL for the
+available encoding schemes.
+
+See <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-STRING" class="xref">IO-STRING (type)</a></pre></div> </article> </li>  <li> <article class="definition generic-function callable" id="GENERIC-FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:(SETF ENCODING)"> <header> <span class="visibility">EXTERNAL</span> <span class="type">GENERIC-FUNCTION</span> <h4 class="name"> <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3A%28SETF%20ENCODING%29">(SETF ENCODING)</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments">  <li class="argument">NEW-VALUE</li>    <li class="argument">OBJECT</li>  </ul>  </header> <div class="docstring"><i>No documentation provided.</i></div> </article> </li>  <li> <article class="definition generic-function callable" id="GENERIC-FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:END"> <header> <span class="visibility">EXTERNAL</span> <span class="type">GENERIC-FUNCTION</span> <h4 class="name"> <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AEND">END</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments">  <li class="argument">CONDITION</li>  </ul>  </header> <div class="docstring"><pre>Returns the maximum index of the storage backend.
+
+This may be NIL if the index is not known.
+
+See <a href="#CONDITION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AEND-OF-STORAGE" class="xref">END-OF-STORAGE (type)</a></pre></div> </article> </li>  <li> <article class="definition generic-function callable" id="GENERIC-FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:FORM"> <header> <span class="visibility">EXTERNAL</span> <span class="type">GENERIC-FUNCTION</span> <h4 class="name"> <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AFORM">FORM</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments">  <li class="argument">OBJECT</li>  </ul>  </header> <div class="docstring"><pre>Accesses the form of the IO-VALUE.
+
+See <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-VALUE" class="xref">IO-VALUE (type)</a></pre></div> </article> </li>  <li> <article class="definition generic-function callable" id="GENERIC-FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:(SETF FORM)"> <header> <span class="visibility">EXTERNAL</span> <span class="type">GENERIC-FUNCTION</span> <h4 class="name"> <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3A%28SETF%20FORM%29">(SETF FORM)</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments">  <li class="argument">NEW-VALUE</li>    <li class="argument">OBJECT</li>  </ul>  </header> <div class="docstring"><i>No documentation provided.</i></div> </article> </li>  <li> <article class="definition generic-function callable" id="GENERIC-FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:INDEX"> <header> <span class="visibility">EXTERNAL</span> <span class="type">GENERIC-FUNCTION</span> <h4 class="name"> <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AINDEX">INDEX</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments">  <li class="argument">CONDITION</li>  </ul>  </header> <div class="docstring"><pre>Returns the index at which the storage condition occurred.
+
+This may be NIL if the index is not known.
+
+See <a href="#CONDITION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AEND-OF-STORAGE" class="xref">END-OF-STORAGE (type)</a></pre></div> </article> </li>  <li> <article class="definition generic-function callable" id="GENERIC-FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:INDEX-FORM"> <header> <span class="visibility">EXTERNAL</span> <span class="type">GENERIC-FUNCTION</span> <h4 class="name"> <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AINDEX-FORM">INDEX-FORM</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments">  <li class="argument">BACKEND</li>  </ul>  <a class="source-link" href="https://github.com/shinmera/binary-structures/blob/HEAD/protocol.lisp#L51">Source</a>  </header> <div class="docstring"><pre>Generate a form that returns the current index.
+
+The form may only be valid within the context established by
+READ-DEFUN or WRITE-DEFUN of the same IO-BACKEND and may thus make use
+of local variables and functions.
+
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AREAD-DEFUN" class="xref">READ-DEFUN</a>
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AWRITE-DEFUN" class="xref">WRITE-DEFUN</a>
+See <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-BACKEND" class="xref">IO-BACKEND</a></pre></div> </article> </li>  <li> <article class="definition generic-function callable" id="GENERIC-FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:INITARGS"> <header> <span class="visibility">EXTERNAL</span> <span class="type">GENERIC-FUNCTION</span> <h4 class="name"> <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AINITARGS">INITARGS</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments">  <li class="argument">IO-TYPE</li>  </ul>  <a class="source-link" href="https://github.com/shinmera/binary-structures/blob/HEAD/protocol.lisp#L56">Source</a>  </header> <div class="docstring"><pre>Returns a list of initargs to reconstruct this type class instance.
+
+See <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-TYPE" class="xref">IO-TYPE (type)</a></pre></div> </article> </li>  <li> <article class="definition generic-function callable" id="GENERIC-FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:LISP-TYPE"> <header> <span class="visibility">EXTERNAL</span> <span class="type">GENERIC-FUNCTION</span> <h4 class="name"> <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ALISP-TYPE">LISP-TYPE</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments">  <li class="argument">IO-TYPE</li>  </ul>  <a class="source-link" href="https://github.com/shinmera/binary-structures/blob/HEAD/protocol.lisp#L53">Source</a>  </header> <div class="docstring"><pre>Returns a suitable lisp type expression for the given io-type.
+
+See <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-TYPE" class="xref">IO-TYPE (type)</a></pre></div> </article> </li>  <li> <article class="definition generic-function callable" id="GENERIC-FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:NAME"> <header> <span class="visibility">EXTERNAL</span> <span class="type">GENERIC-FUNCTION</span> <h4 class="name"> <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ANAME">NAME</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments">  <li class="argument">CONDITION</li>  </ul>  </header> <div class="docstring"><pre>Returns the name associated with the object.
+
+See <a href="#CONDITION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ANO-SUCH-SLOT" class="xref">NO-SUCH-SLOT (type)</a>
+See <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-STRUCTURE" class="xref">IO-STRUCTURE (type)</a>
+See <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-STRUCTURE-SLOT" class="xref">IO-STRUCTURE-SLOT (type)</a></pre></div> </article> </li>  <li> <article class="definition generic-function callable" id="GENERIC-FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:(SETF NAME)"> <header> <span class="visibility">EXTERNAL</span> <span class="type">GENERIC-FUNCTION</span> <h4 class="name"> <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3A%28SETF%20NAME%29">(SETF NAME)</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments">  <li class="argument">NEW-VALUE</li>    <li class="argument">OBJECT</li>  </ul>  </header> <div class="docstring"><i>No documentation provided.</i></div> </article> </li>  <li> <article class="definition generic-function callable" id="GENERIC-FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:OCTET-SIZE"> <header> <span class="visibility">EXTERNAL</span> <span class="type">GENERIC-FUNCTION</span> <h4 class="name"> <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AOCTET-SIZE">OCTET-SIZE</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments">  <li class="argument">IO-TYPE</li>  </ul>  <a class="source-link" href="https://github.com/shinmera/binary-structures/blob/HEAD/protocol.lisp#L55">Source</a>  </header> <div class="docstring"><pre>Returns an octet-size estimate for the given io-type.
+
+Note that this may return an unspecific size.
+
+See <a href="#FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AUNSPECIFIC-P" class="xref">UNSPECIFIC-P</a>
+See <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-TYPE" class="xref">IO-TYPE (type)</a></pre></div> </article> </li>  <li> <article class="definition generic-function callable" id="GENERIC-FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:(SETF OCTET-SIZE)"> <header> <span class="visibility">EXTERNAL</span> <span class="type">GENERIC-FUNCTION</span> <h4 class="name"> <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3A%28SETF%20OCTET-SIZE%29">(SETF OCTET-SIZE)</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments">  <li class="argument">NEW-VALUE</li>    <li class="argument">OBJECT</li>  </ul>  </header> <div class="docstring"><i>No documentation provided.</i></div> </article> </li>  <li> <article class="definition generic-function callable" id="GENERIC-FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:OFFSET"> <header> <span class="visibility">EXTERNAL</span> <span class="type">GENERIC-FUNCTION</span> <h4 class="name"> <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AOFFSET">OFFSET</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments">  <li class="argument">OBJECT</li>  </ul>  </header> <div class="docstring"><pre>Accesses the octet index at which the object resides.
+
+See <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-BACKEND" class="xref">IO-BACKEND</a>
+See <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-STRUCTURE-SLOT" class="xref">IO-STRUCTURE-SLOT</a></pre></div> </article> </li>  <li> <article class="definition generic-function callable" id="GENERIC-FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:(SETF OFFSET)"> <header> <span class="visibility">EXTERNAL</span> <span class="type">GENERIC-FUNCTION</span> <h4 class="name"> <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3A%28SETF%20OFFSET%29">(SETF OFFSET)</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments">  <li class="argument">NEW-VALUE</li>    <li class="argument">OBJECT</li>  </ul>  </header> <div class="docstring"><i>No documentation provided.</i></div> </article> </li>  <li> <article class="definition generic-function callable" id="GENERIC-FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:ORDER"> <header> <span class="visibility">EXTERNAL</span> <span class="type">GENERIC-FUNCTION</span> <h4 class="name"> <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AORDER">ORDER</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments">  <li class="argument">OBJECT</li>  </ul>  </header> <div class="docstring"><pre>Accesses the byte order of the type.
+
+May be either :LITTLE-ENDIAN or :BIG-ENDIAN.
+
+See <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ANUMERIC-TYPE" class="xref">NUMERIC-TYPE (type)</a></pre></div> </article> </li>  <li> <article class="definition generic-function callable" id="GENERIC-FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:(SETF ORDER)"> <header> <span class="visibility">EXTERNAL</span> <span class="type">GENERIC-FUNCTION</span> <h4 class="name"> <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3A%28SETF%20ORDER%29">(SETF ORDER)</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments">  <li class="argument">NEW-VALUE</li>    <li class="argument">OBJECT</li>  </ul>  </header> <div class="docstring"><i>No documentation provided.</i></div> </article> </li>  <li> <article class="definition generic-function callable" id="GENERIC-FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:PARSE-IO-TYPE"> <header> <span class="visibility">EXTERNAL</span> <span class="type">GENERIC-FUNCTION</span> <h4 class="name"> <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3APARSE-IO-TYPE">PARSE-IO-TYPE</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments">  <li class="argument">TYPE</li>    <li class="argument lambda-list-keyword">&amp;REST</li>    <li class="argument">ARGS</li>  </ul>  <a class="source-link" href="https://github.com/shinmera/binary-structures/blob/HEAD/protocol.lisp#L58">Source</a>  </header> <div class="docstring"><pre>Parse the given type designator with the arguments to an IO-TYPE instance.
+
+See <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-TYPE" class="xref">IO-TYPE (type)</a></pre></div> </article> </li>  <li> <article class="definition generic-function callable" id="GENERIC-FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:READ-DEFUN"> <header> <span class="visibility">EXTERNAL</span> <span class="type">GENERIC-FUNCTION</span> <h4 class="name"> <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AREAD-DEFUN">READ-DEFUN</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments">  <li class="argument">BACKEND</li>    <li class="argument">IO-TYPE</li>  </ul>  <a class="source-link" href="https://github.com/shinmera/binary-structures/blob/HEAD/protocol.lisp#L45">Source</a>  </header> <div class="docstring"><pre>Generate a reader function definition form for the given IO-TYPE under the IO-BACKEND.
+
+This does not necessarily have to be a direct DEFUN form, but must
+when evaluated have the effect of defining such a function.
+
+Within the function definition, a call to READ-FORM of the given
+IO-TYPE and IO-BACKEND must occur to provide the function's
+logic.
+
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AREAD-FORM" class="xref">READ-FORM</a>
+See <a href="#FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-TYPE" class="xref">IO-TYPE</a>
+See <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-BACKEND" class="xref">IO-BACKEND</a></pre></div> </article> </li>  <li> <article class="definition generic-function callable" id="GENERIC-FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:READ-FORM"> <header> <span class="visibility">EXTERNAL</span> <span class="type">GENERIC-FUNCTION</span> <h4 class="name"> <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AREAD-FORM">READ-FORM</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments">  <li class="argument">BACKEND</li>    <li class="argument">IO-TYPE</li>  </ul>  <a class="source-link" href="https://github.com/shinmera/binary-structures/blob/HEAD/protocol.lisp#L49">Source</a>  </header> <div class="docstring"><pre>Generate a form suitable for reading the given IO-TYPE under the IO-BACKEND.
+
+The form may only be valid within the context established by
+READ-DEFUN of the same IO-BACKEND and may thus make use of local
+variables and functions.
+
+It is expected that backends add methods to this function for all
+primitive types, and methods for compound types that may be more
+efficient than the generic variants provided by the default IO-BACKEND
+method.
+
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AREAD-DEFUN" class="xref">READ-DEFUN</a>
+See <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-BACKEND" class="xref">IO-BACKEND</a>
+See <a href="#FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-TYPE" class="xref">IO-TYPE</a></pre></div> </article> </li>  <li> <article class="definition generic-function callable" id="GENERIC-FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:SEEK-FORM"> <header> <span class="visibility">EXTERNAL</span> <span class="type">GENERIC-FUNCTION</span> <h4 class="name"> <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ASEEK-FORM">SEEK-FORM</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments">  <li class="argument">BACKEND</li>    <li class="argument">OFFSET</li>  </ul>  <a class="source-link" href="https://github.com/shinmera/binary-structures/blob/HEAD/protocol.lisp#L52">Source</a>  </header> <div class="docstring"><pre>Generate a form that seeks to the requested offset.
+
+OFFSET may be a number or a form. If the backend determines that
+seeking at this point in the generation to the requested offset is
+unnecessary, such as when OFFSET is a number and the current static
+offset as determined by the backend is the same, NIL may also be
+returned.
+
+The form may only be valid within the context established by
+READ-DEFUN or WRITE-DEFUN of the same IO-BACKEND and may thus make use
+of local variables and functions.
+
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AREAD-DEFUN" class="xref">READ-DEFUN</a>
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AWRITE-DEFUN" class="xref">WRITE-DEFUN</a>
+See <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-BACKEND" class="xref">IO-BACKEND</a></pre></div> </article> </li>  <li> <article class="definition generic-function callable" id="GENERIC-FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:SIGNED-P"> <header> <span class="visibility">EXTERNAL</span> <span class="type">GENERIC-FUNCTION</span> <h4 class="name"> <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ASIGNED-P">SIGNED-P</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments">  <li class="argument">OBJECT</li>  </ul>  </header> <div class="docstring"><pre>Accesses whether the integer type is signed or not.
+
+See <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-INTEGER" class="xref">IO-INTEGER (type)</a></pre></div> </article> </li>  <li> <article class="definition generic-function callable" id="GENERIC-FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:(SETF SIGNED-P)"> <header> <span class="visibility">EXTERNAL</span> <span class="type">GENERIC-FUNCTION</span> <h4 class="name"> <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3A%28SETF%20SIGNED-P%29">(SETF SIGNED-P)</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments">  <li class="argument">NEW-VALUE</li>    <li class="argument">OBJECT</li>  </ul>  </header> <div class="docstring"><i>No documentation provided.</i></div> </article> </li>  <li> <article class="definition generic-function callable" id="GENERIC-FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:SLOTS"> <header> <span class="visibility">EXTERNAL</span> <span class="type">GENERIC-FUNCTION</span> <h4 class="name"> <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ASLOTS">SLOTS</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments">  <li class="argument">OBJECT</li>  </ul>  </header> <div class="docstring"><pre>Accesses the list of IO-STRUCTURE-SLOTs that define the structure's members.
+
+See <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-STRUCTURE" class="xref">IO-STRUCTURE (type)</a>
+See <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-STRUCTURE-SLOT" class="xref">IO-STRUCTURE-SLOT (type)</a></pre></div> </article> </li>  <li> <article class="definition generic-function callable" id="GENERIC-FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:(SETF SLOTS)"> <header> <span class="visibility">EXTERNAL</span> <span class="type">GENERIC-FUNCTION</span> <h4 class="name"> <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3A%28SETF%20SLOTS%29">(SETF SLOTS)</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments">  <li class="argument">NEW-VALUE</li>    <li class="argument">OBJECT</li>  </ul>  </header> <div class="docstring"><i>No documentation provided.</i></div> </article> </li>  <li> <article class="definition generic-function callable" id="GENERIC-FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:STRIDE"> <header> <span class="visibility">EXTERNAL</span> <span class="type">GENERIC-FUNCTION</span> <h4 class="name"> <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ASTRIDE">STRIDE</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments">  <li class="argument">OBJECT</li>  </ul>  </header> <div class="docstring"><pre>Accesses the stride between two elements in the IO-VECTOR.
+
+This may be a form that, when evaluated, yields an integer
+representing the number of octets between the start of any two values
+in the sequence.
+
+See <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-VECTOR" class="xref">IO-VECTOR (type)</a></pre></div> </article> </li>  <li> <article class="definition generic-function callable" id="GENERIC-FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:(SETF STRIDE)"> <header> <span class="visibility">EXTERNAL</span> <span class="type">GENERIC-FUNCTION</span> <h4 class="name"> <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3A%28SETF%20STRIDE%29">(SETF STRIDE)</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments">  <li class="argument">NEW-VALUE</li>    <li class="argument">OBJECT</li>  </ul>  </header> <div class="docstring"><i>No documentation provided.</i></div> </article> </li>  <li> <article class="definition generic-function callable" id="GENERIC-FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:STRUCT"> <header> <span class="visibility">EXTERNAL</span> <span class="type">GENERIC-FUNCTION</span> <h4 class="name"> <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ASTRUCT">STRUCT</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments">  <li class="argument">CONDITION</li>  </ul>  </header> <div class="docstring"><pre>Returns the structure that the slot was searched in.
+
+See <a href="#CONDITION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ANO-SUCH-SLOT" class="xref">NO-SUCH-SLOT (type)</a></pre></div> </article> </li>  <li> <article class="definition generic-function callable" id="GENERIC-FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:VALUE"> <header> <span class="visibility">EXTERNAL</span> <span class="type">GENERIC-FUNCTION</span> <h4 class="name"> <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AVALUE">VALUE</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments">  <li class="argument">CONDITION</li>  </ul>  </header> <div class="docstring"><pre>Returns the value that failed the encoding/decoding.
+
+See <a href="#CONDITION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AUNKNOWN-VALUE" class="xref">UNKNOWN-VALUE (type)</a></pre></div> </article> </li>  <li> <article class="definition generic-function callable" id="GENERIC-FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:VALUE-TYPE"> <header> <span class="visibility">EXTERNAL</span> <span class="type">GENERIC-FUNCTION</span> <h4 class="name"> <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AVALUE-TYPE">VALUE-TYPE</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments">  <li class="argument">OBJECT</li>  </ul>  </header> <div class="docstring"><pre>Accesses the IO-TYPE this type encapsulates.
+
+See <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-CASE" class="xref">IO-CASE (type)</a>
+See <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-STRUCTURE" class="xref">IO-STRUCTURE (type)</a>
+See <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-STRUCTURE-SLOT" class="xref">IO-STRUCTURE-SLOT (type)</a></pre></div> </article> </li>  <li> <article class="definition generic-function callable" id="GENERIC-FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:(SETF VALUE-TYPE)"> <header> <span class="visibility">EXTERNAL</span> <span class="type">GENERIC-FUNCTION</span> <h4 class="name"> <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3A%28SETF%20VALUE-TYPE%29">(SETF VALUE-TYPE)</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments">  <li class="argument">NEW-VALUE</li>    <li class="argument">OBJECT</li>  </ul>  </header> <div class="docstring"><i>No documentation provided.</i></div> </article> </li>  <li> <article class="definition generic-function callable" id="GENERIC-FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:WRITE-DEFUN"> <header> <span class="visibility">EXTERNAL</span> <span class="type">GENERIC-FUNCTION</span> <h4 class="name"> <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AWRITE-DEFUN">WRITE-DEFUN</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments">  <li class="argument">BACKEND</li>    <li class="argument">IO-TYPE</li>  </ul>  <a class="source-link" href="https://github.com/shinmera/binary-structures/blob/HEAD/protocol.lisp#L46">Source</a>  </header> <div class="docstring"><pre>Generate a writer function definition form for the given IO-TYPE under the IO-BACKEND.
+
+This does not necessarily have to be a direct DEFUN form, but must
+when evaluated have the effect of defining such a function.
+
+Within the function definition, a call to WRITE-FORM of the given
+IO-TYPE and IO-BACKEND must occur to provide the function's
+logic.
+
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AWRITE-FORM" class="xref">WRITE-FORM</a>
+See <a href="#FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-TYPE" class="xref">IO-TYPE</a>
+See <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-BACKEND" class="xref">IO-BACKEND</a></pre></div> </article> </li>  <li> <article class="definition generic-function callable" id="GENERIC-FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:WRITE-FORM"> <header> <span class="visibility">EXTERNAL</span> <span class="type">GENERIC-FUNCTION</span> <h4 class="name"> <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AWRITE-FORM">WRITE-FORM</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments">  <li class="argument">BACKEND</li>    <li class="argument">IO-TYPE</li>    <li class="argument">VALUE-VARIABLE</li>  </ul>  <a class="source-link" href="https://github.com/shinmera/binary-structures/blob/HEAD/protocol.lisp#L50">Source</a>  </header> <div class="docstring"><pre>Generate a form suitable for writing the value contained in VALUE-VARIABLE as the given IO-TYPE under the IO-BACKEND.
+
+The form may only be valid within the context established by
+WRITE-DEFUN of the same IO-BACKEND and may thus make use of local
+variables and functions.
+
+It is expected that backends add methods to this function for all
+primitive types, and methods for compound types that may be more
+efficient than the generic variants provided by the default IO-BACKEND
+method.
+
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AWRITE-DEFUN" class="xref">WRITE-DEFUN</a>
+See <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-BACKEND" class="xref">IO-BACKEND</a>
+See <a href="#FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-TYPE" class="xref">IO-TYPE</a></pre></div> </article> </li>  <li> <article class="definition macro callable" id="MACRO-FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:DEFINE-IO-ALIAS"> <header> <span class="visibility">EXTERNAL</span> <span class="type">MACRO</span> <h4 class="name"> <a href="#MACRO-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ADEFINE-IO-ALIAS">DEFINE-IO-ALIAS</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments">  <li class="argument">NAME</li>    <li class="argument">EXPANSION</li>  </ul>  <a class="source-link" href="https://github.com/shinmera/binary-structures/blob/HEAD/protocol.lisp#L212">Source</a>  </header> <div class="docstring"><pre>Defines a type designator alias.
+
+This is equivalent to
+  (define-io-parser name () (parse-io-type expansion))
+
+See DEFINE-IO-PARSER</pre></div> </article> </li>  <li> <article class="definition macro callable" id="MACRO-FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:DEFINE-IO-BACKEND"> <header> <span class="visibility">EXTERNAL</span> <span class="type">MACRO</span> <h4 class="name"> <a href="#MACRO-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ADEFINE-IO-BACKEND">DEFINE-IO-BACKEND</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments">  <li class="argument">NAME</li>    <li class="argument lambda-list-keyword">&amp;OPTIONAL</li>    <li class="argument">SUPERS</li>    <li class="argument lambda-list-keyword">&amp;REST</li>    <li class="argument">SLOTS</li>  </ul>  <a class="source-link" href="https://github.com/shinmera/binary-structures/blob/HEAD/protocol.lisp#L144">Source</a>  </header> <div class="docstring"><pre>Defines a new IO-BACKEND class and registers it.
+
+See <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-BACKEND" class="xref">IO-BACKEND (type)</a>
+See <a href="#FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ALIST-IO-BACKENDS" class="xref">LIST-IO-BACKENDS</a></pre></div> </article> </li>  <li> <article class="definition macro callable" id="MACRO-FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:DEFINE-IO-BACKEND-FUNCTION"> <header> <span class="visibility">EXTERNAL</span> <span class="type">MACRO</span> <h4 class="name"> <a href="#MACRO-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ADEFINE-IO-BACKEND-FUNCTION">DEFINE-IO-BACKEND-FUNCTION</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments">  <li class="argument">TYPE</li>    <li class="argument">IO-BACKEND</li>    <li class="argument">IO-TYPE</li>  </ul>  <a class="source-link" href="https://github.com/shinmera/binary-structures/blob/HEAD/protocol.lisp#L175">Source</a>  </header> <div class="docstring"><pre>Generate a function that parses the given IO-TYPE under the given IO-BACKEND.
+
+TYPE may be either :READ or :WRITE according to which the
+corresponding function is generated.
+
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AREAD-DEFUN" class="xref">READ-DEFUN</a>
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AWRITE-DEFUN" class="xref">WRITE-DEFUN</a>
+See <a href="#MACRO-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ADEFINE-IO-FUNCTIONS" class="xref">DEFINE-IO-FUNCTIONS</a></pre></div> </article> </li>  <li> <article class="definition macro callable" id="MACRO-FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:DEFINE-IO-DISPATCH"> <header> <span class="visibility">EXTERNAL</span> <span class="type">MACRO</span> <h4 class="name"> <a href="#MACRO-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ADEFINE-IO-DISPATCH">DEFINE-IO-DISPATCH</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments">  <li class="argument">TYPE</li>    <li class="argument">LISP-TYPE</li>    <ul class="arguments"> <li class="argument">VALUE-VAR</li>  <li class="argument lambda-list-keyword">&amp;REST</li>  <li class="argument">RUNTIME-ARGS</li> </ul>    <li class="argument lambda-list-keyword">&amp;BODY</li>    <li class="argument">BODY</li>  </ul>  <a class="source-link" href="https://github.com/shinmera/binary-structures/blob/HEAD/protocol.lisp#L150">Source</a>  </header> <div class="docstring"><i>No documentation provided.</i></div> </article> </li>  <li> <article class="definition macro callable" id="MACRO-FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:DEFINE-IO-DISPATCH-FUNCTION"> <header> <span class="visibility">EXTERNAL</span> <span class="type">MACRO</span> <h4 class="name"> <a href="#MACRO-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ADEFINE-IO-DISPATCH-FUNCTION">DEFINE-IO-DISPATCH-FUNCTION</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments">  <li class="argument">TYPE</li>    <li class="argument">IO-TYPE</li>  </ul>  <a class="source-link" href="https://github.com/shinmera/binary-structures/blob/HEAD/protocol.lisp#L180">Source</a>  </header> <div class="docstring"><pre>Generate a dispatch function that parses the given IO-TYPE.
+
+TYPE may be either :READ or :WRITE according to which the
+corresponding function is generated.
+
+See <a href="#MACRO-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ADEFINE-IO-DISPATCH" class="xref">DEFINE-IO-DISPATCH</a>
+See <a href="#MACRO-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ADEFINE-IO-FUNCTIONS" class="xref">DEFINE-IO-FUNCTIONS</a></pre></div> </article> </li>  <li> <article class="definition macro callable" id="MACRO-FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:DEFINE-IO-FUNCTIONS"> <header> <span class="visibility">EXTERNAL</span> <span class="type">MACRO</span> <h4 class="name"> <a href="#MACRO-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ADEFINE-IO-FUNCTIONS">DEFINE-IO-FUNCTIONS</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments">  <li class="argument">IO-TYPE</li>  </ul>  <a class="source-link" href="https://github.com/shinmera/binary-structures/blob/HEAD/protocol.lisp#L204">Source</a>  </header> <div class="docstring"><pre>Generate all possible parsing functions for the given IO-TYPE.
+
+See <a href="#MACRO-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ADEFINE-IO-BACKEND-FUNCTION" class="xref">DEFINE-IO-BACKEND-FUNCTION</a>
+See <a href="#MACRO-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ADEFINE-IO-DISPATCH-FUNCTION" class="xref">DEFINE-IO-DISPATCH-FUNCTION</a></pre></div> </article> </li>  <li> <article class="definition macro callable" id="MACRO-FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:DEFINE-IO-STRUCTURE"> <header> <span class="visibility">EXTERNAL</span> <span class="type">MACRO</span> <h4 class="name"> <a href="#MACRO-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ADEFINE-IO-STRUCTURE">DEFINE-IO-STRUCTURE</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments">  <li class="argument">NAME</li>    <li class="argument lambda-list-keyword">&amp;BODY</li>    <li class="argument">SLOTS</li>  </ul>  <a class="source-link" href="https://github.com/shinmera/binary-structures/blob/HEAD/protocol.lisp#L683">Source</a>  </header> <div class="docstring"><pre>Define an IO-STRUCTURE type instance.
+
+This will do the following:
+  1. Define a structure via DEFSTRUCT corresponding to the specified
+     name and slots.
+  2. Define an IO-TYPE corresponding to the specified name and slots.
+  3. Define all associated functions via DEFINE-IO-FUNCTIONS.
+
+Each slot in the body may be one of the following:
+  - An :INCLUDE expression, which causes the specified structure's
+    slots to be spliced in. If the :INCLUDE expression occurs first,
+    the generated STRUCTURE-CLASS will be a subtype of the specified
+    structure.
+  - A slot expression, which is structured like:
+      (NAME IO-TYPE-DESIGNATOR &amp;key OFFSET SIZE ALIGN PAD)
+    IO-TYPE-DESIGNATOR must be a designator for a type as parsed by
+    PARSE-IO-TYPE. OFFSET is computed automatically based on the size
+    of preceding slots. You may add padding with PAD, or ensure the
+    slot offset is rounded up to a given alignment using ALIGN. You
+    can also manually force a slot to take up more space via SIZE.
+  - A symbol designating the name of an io-type which will be used to
+    pad the structure out with the size of the type.
+
+Note that IO-VALUEs (forms that aren't designating IO-TYPEs and are
+instead used for their runtime value) are evaluated in a lexical
+environment with a SLOT macro bound. This macro either takes the name
+of a slot of the structure to read out, or some other value form and
+the names of the slots to resolve within. For example:
+
+  (SLOT FOO)       ==&gt; (SLOT-VALUE %current-structure 'FOO)
+  (SLOT (FOO) BAR) ==&gt; (SLOT-VALUE (FOO) 'BAR)
+
+Referring to prior slots allows you to dynamically size later slots or
+dispatch based on the type of an earlier slot's value.
+
+See <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-STRUCTURE" class="xref">IO-STRUCTURE (type)</a>
+See <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-STRUCTURE-SLOT" class="xref">IO-STRUCTURE-SLOT (type)</a>
+See <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-STRUCTURE-MAGIC" class="xref">IO-STRUCTURE-MAGIC (type)</a>
+See <a href="#MACRO-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ADEFINE-IO-TYPE" class="xref">DEFINE-IO-TYPE</a>
+See <a href="#MACRO-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ADEFINE-IO-FUNCTIONS" class="xref">DEFINE-IO-FUNCTIONS</a></pre></div> </article> </li>  <li> <article class="definition macro callable" id="MACRO-FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:DEFINE-IO-TYPE"> <header> <span class="visibility">EXTERNAL</span> <span class="type">MACRO</span> <h4 class="name"> <a href="#MACRO-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ADEFINE-IO-TYPE">DEFINE-IO-TYPE</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments">  <ul class="arguments"> <li class="argument">TYPE</li>  <li class="argument">NAME</li> </ul>    <li class="argument lambda-list-keyword">&amp;BODY</li>    <li class="argument">INITARGS</li>  </ul>  <a class="source-link" href="https://github.com/shinmera/binary-structures/blob/HEAD/protocol.lisp#L134">Source</a>  </header> <div class="docstring"><pre>Define a new IO-TYPE instance under the given name.
+
+The io type will be available at compile-time as well as run-time.
+
+See <a href="#CLASS%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-TYPE" class="xref">IO-TYPE (type)</a>
+See <a href="#FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3AIO-TYPE" class="xref">IO-TYPE</a></pre></div> </article> </li>  <li> <article class="definition macro callable" id="MACRO-FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:DEFINE-IO-TYPE-PARSER"> <header> <span class="visibility">EXTERNAL</span> <span class="type">MACRO</span> <h4 class="name"> <a href="#MACRO-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ADEFINE-IO-TYPE-PARSER">DEFINE-IO-TYPE-PARSER</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments">  <li class="argument">DESIGNATOR</li>    <li class="argument">LAMBDA-LIST</li>    <li class="argument lambda-list-keyword">&amp;BODY</li>    <li class="argument">BODY</li>  </ul>  <a class="source-link" href="https://github.com/shinmera/binary-structures/blob/HEAD/protocol.lisp#L168">Source</a>  </header> <div class="docstring"><pre>Defines an IO type designator parsing function for the given type name.
+
+This will cause both DESIGNATOR and (DESIGNATOR ...) to match as type
+designators and invoke your function to parse it to an IO-TYPE
+instance.
+
+See <a href="#GENERIC-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3APARSE-IO-TYPE" class="xref">PARSE-IO-TYPE</a></pre></div> </article> </li>  <li> <article class="definition macro callable" id="MACRO-FUNCTION ORG.SHIRAKUMO.BINARY-STRUCTURES:DEFINE-IO-TYPES"> <header> <span class="visibility">EXTERNAL</span> <span class="type">MACRO</span> <h4 class="name"> <a href="#MACRO-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ADEFINE-IO-TYPES">DEFINE-IO-TYPES</a> </h4> <ul class="qualifiers"></ul> <ul class="arguments">  <li class="argument">TYPE</li>    <li class="argument lambda-list-keyword">&amp;BODY</li>    <li class="argument">COMBINATORS</li>  </ul>  <a class="source-link" href="https://github.com/shinmera/binary-structures/blob/HEAD/standard-types.lisp#L9">Source</a>  </header> <div class="docstring"><pre>Shorthand macro to define different permutations of IO types.
+
+See <a href="#MACRO-FUNCTION%20ORG.SHIRAKUMO.BINARY-STRUCTURES%3ADEFINE-IO-TYPE" class="xref">DEFINE-IO-TYPE</a></pre></div> </article> </li> </ul> </article> </li>  <li> <article class="definition package" id="PACKAGE ORG.SHIRAKUMO.BINARY-STRUCTURES.TYPES"> <header> <h3> <a href="#PACKAGE%20ORG.SHIRAKUMO.BINARY-STRUCTURES.TYPES">ORG.SHIRAKUMO.BINARY-STRUCTURES.TYPES</a> </h3> <ul class="nicknames"></ul>  </header> <div class="docstring"><i>No documentation provided.</i></div> <ul class="definitions"></ul> </article> </li> </ul> </section>  </article> <script>window.addEventListener("DOMContentLoaded", function(){
+    var unmarkElement = function(el){
+        if(el.tagName === "mark" || el.tagName === "MARK"){
+            [].forEach.call(el.childNodes, function(child){
+                el.parentNode.insertBefore(child, el);
+            });
+            el.parentNode.removeChild(el);
+        }else if(el.parentNode.tagName === "mark"){
+            return unmarkElement(el.parentNode);
+        }
+        return null;
+    }
+
+    var unmarkAll = function(root){
+        root = root || document;
+        [].forEach.call(root.querySelectorAll("mark"), unmarkElement);
+    }
+    
+    var markElement = function(el){
+        if(el.parentNode.tagName === "mark" || el.parentNode.tagName === "MARK"){
+            return el.parentNode;
+        } else {
+            unmarkAll();
+            var marked = document.createElement("mark");
+            el.parentNode.insertBefore(marked, el);
+            marked.appendChild(el);
+            return marked;
+        }
+    }
+
+    var markFragmented = function(){
+        if(window.location.hash){
+            var el = document.getElementById(decodeURIComponent(window.location.hash.substr(1)));
+            if(el) markElement(el);
+        }
+    }
+
+    var registerXrefLink = function(link){
+        var el = document.getElementById(decodeURIComponent(link.getAttribute("href").substr(1)));
+        if(el){
+            link.addEventListener("click", function(){
+                markElement(el);
+            });
+        }
+    }
+
+    var registerXrefLinks = function(root){
+        root = root || document;
+        [].forEach.call(root.querySelectorAll("a.xref"), registerXrefLink);
+    }
+
+    markFragmented();
+    registerXrefLinks();
+}); </script> </body> </html> 
