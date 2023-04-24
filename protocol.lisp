@@ -239,7 +239,7 @@
   ((signed-p :initarg :signed-p :initform T :accessor signed-p)))
 
 (define-print-object-method io-integer
-  "~:[S~;U~]B ~d ~a" signed-p (* 8 (octet-size io-integer)) order)
+  "~:[U~;S~]B ~d ~a" signed-p (* 8 (octet-size io-integer)) order)
 
 (defmethod default-value ((type io-integer))
   0)

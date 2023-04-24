@@ -72,16 +72,16 @@
 
 (defmethod read-form ((backend io-foreign-pointer) (type io-integer))
   `(read-mem pointer
-       ,(find-symbol* 'keyword (if (signed-p type) 'u '||) 'int
+       ,(find-symbol* 'keyword (if (signed-p type) '|| 'u) 'int
                       (* 8 (octet-size type)))
        ,(octet-size type)))
 
 (defmethod write-form ((backend io-foreign-pointer) (type io-integer) value-variable)
   `(write-mem ,value-variable
-              pointer
-              ,(find-symbol* 'keyword (if (signed-p type) 'u '||) 'int
-                             (* 8 (octet-size type)))
-              ,(octet-size type)))
+       pointer
+       ,(find-symbol* 'keyword (if (signed-p type) '|| 'u) 'int
+                      (* 8 (octet-size type)))
+       ,(octet-size type)))
 
 (defmethod read-form ((backend io-foreign-pointer) (type io-float))
   `(read-mem pointer 
