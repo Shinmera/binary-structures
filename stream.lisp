@@ -113,7 +113,6 @@
      (cond ((= 0 diff))
            ((< 8 diff)
             (let ((scratch (make-array diff :element-type '(unsigned-byte 8))))
-              (declare (dynamic-extent scratch))
               (read-sequence scratch stream)))
            ((< 0 diff)
             (loop repeat diff do (read-byte stream)))
