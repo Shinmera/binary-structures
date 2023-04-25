@@ -303,9 +303,15 @@
 
 (defmethod write-form ((backend io-backend) (type io-vector) value-variable)
   (let ((element (gensym "ELEMENT")))
-    `(dotimes (i (length ,value-variable))
-       (let ((,element (aref ,value-variable i)))
-         ,(write-form backend (element-type type) element)))))
+    `(etypecase ,value-variable
+       (simple-array
+        (dotimes (i (length ,value-variable))
+          (let ((,element (aref ,value-variable i)))
+            ,(write-form backend (element-type type) element))))
+       (array
+        (dotimes (i (length ,value-variable))
+          (let ((,element (aref ,value-variable i)))
+            ,(write-form backend (element-type type) element)))))))
 
 (defmethod read-form :around ((backend io-backend) (type io-vector))
   (let ((offset (offset backend)))
