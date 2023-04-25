@@ -325,10 +325,10 @@
                                  (+ offset (octet-size type)))))))
 
 (defmethod lisp-type ((type io-vector))
-  `(simple-array ,(lisp-type (element-type type))
-                 (,(if (numberp (element-count type))
-                       (element-count type)
-                       '*))))
+  `(array ,(lisp-type (element-type type))
+          (,(if (numberp (element-count type))
+                (element-count type)
+                '*))))
 
 (defmethod default-value ((type io-vector))
   `(make-array 0 :element-type ',(lisp-type (element-type type))))
