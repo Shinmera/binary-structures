@@ -207,7 +207,14 @@
              collect `(define-io-backend-function :read ,backend ,io-type)
              collect `(define-io-backend-function :write ,backend ,io-type))
      (define-io-dispatch-function :read ,io-type)
-     (define-io-dispatch-function :write ,io-type)))
+     (define-io-dispatch-function :write ,io-type)
+
+     (defmethod octet-size ((value ,io-type))
+       ,(let ((last (car (last (slots (io-type io-type))))))
+          (if (null last)
+              0
+              `(+ ,(offset last)
+                  ,(octet-size last)))))))
 
 (defmacro define-io-alias (name expansion)
   `(define-io-type-parser ,name ()
