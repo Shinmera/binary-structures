@@ -53,6 +53,7 @@
 (defgeneric lisp-type (io-type))
 (defgeneric default-value (io-type))
 (defgeneric octet-size (io-type))
+(defgeneric octet-size-form (io-type value-variable))
 (defgeneric initargs (io-type)
   (:method-combination append :most-specific-first))
 (defgeneric parse-io-type (type &rest args))
@@ -95,6 +96,12 @@
 
 (defmethod octet-size (type)
   (octet-size (parse-io-type type)))
+
+(defmethod octet-size-form (type value-variable)
+  (octet-size-form (parse-io-type type) value-variable))
+
+(defmethod octet-size-form ((type io-type) value-variable)
+  (octet-size type))
 
 (defmethod index-form :around ((backend io-backend))
   (if (unspecific-p (offset backend))
@@ -210,11 +217,7 @@
      (define-io-dispatch-function :write ,io-type)
 
      (defmethod octet-size ((value ,io-type))
-       ,(let ((last (car (last (slots (io-type io-type))))))
-          (if (null last)
-              0
-              `(+ ,(offset last)
-                  ,(octet-size last)))))))
+       ,(octet-size-form io-type 'value))))
 
 (defmacro define-io-alias (name expansion)
   `(define-io-type-parser ,name ()
@@ -353,6 +356,12 @@
            (octet-size (element-type type)))
         '*)))
 
+(defmethod octet-size-form ((type io-vector) value-variable)
+  `(if (= 0 (length ,value-variable))
+       0
+       (* (length ,value-variable)
+          ,(octet-size-form (element-type type) `(aref ,value-variable 0)))))
+
 (defmethod initargs append ((type io-vector))
   (list :element-type (element-type type)
         :element-count (element-count type)
@@ -386,6 +395,9 @@
 (defmethod octet-size ((type io-string))
   (let ((count (element-count type)))
     (if (numberp count) count '*)))
+
+(defmethod octet-size-form ((type io-string) value-variable)
+  `(babel:string-size-in-octets ,value-variable :encoding ,(encoding type)))
 
 (defmethod initargs append ((type io-string))
   (list :encoding (encoding type)
@@ -451,6 +463,13 @@
         (or (unspecific-p size add) (+ size add))
         size)))
 
+(defmethod octet-size-form ((type io-case) value-variable)
+  `(+ ,(if (unspecific-p (octet-size (value-type type)))
+           0 (octet-size (value-type type)))
+      (if (typep ,value-variable 'io-structure-object)
+          (octet-size ,value-variable)
+          0)))
+
 (define-io-type-parser case (value-type &rest cases)
   (make-instance 'io-case :value-type value-type
                           :cases cases))
@@ -464,9 +483,10 @@
 (defmethod write-form ((backend io-backend) (type io-value) value)
   (form type))
 
-(defmethod lisp-type ((type io-type)) T)
-(defmethod default-value ((type io-type)) NIL)
-(defmethod octet-size ((type io-type)) '*)
+(defmethod lisp-type ((type io-value)) T)
+(defmethod default-value ((type io-value)) NIL)
+(defmethod octet-size ((type io-value)) 0)
+(defmethod octet-size-form ((type io-value) value-variable) 0)
 
 (defmethod parse-io-type ((type cons) &rest args)
   (handler-case (apply #'parse-io-type (car type) (append (cdr type) args))
@@ -502,6 +522,9 @@
                (setf add '*)))))
     (or (unspecific-p add)
         add '*)))
+
+(defmethod octet-size-form ((type io-typecase) value-variable)
+  `(octet-size ,value-variable))
 
 (define-io-type-parser typecase (form &rest cases)
   (make-instance 'io-typecase :form form :cases cases))
@@ -591,6 +614,11 @@
         (+ (offset last)
            (octet-size last)))))
 
+(defmethod octet-size-form ((type io-structure) value-variable)
+  (let ((last (car (last (slots type)))))
+    `(+ ,(offset last)
+        ,(octet-size-form last (list (intern* (value-type type) '- (name last)) value-variable)))))
+
 (defmethod initargs append ((type io-structure))
   (list :value-type (value-type type)
         :constructor (constructor type)
@@ -623,6 +651,9 @@
 
 (defmethod write-form ((backend io-backend) (type io-structure-slot) value-variable)
   (write-form backend (value-type type) value-variable))
+
+(defmethod octet-size-form ((slot io-structure-slot) value-variable)
+  (octet-size-form (value-type slot) value-variable))
 
 (defclass io-structure-magic (io-structure-slot)
   ((value-type :initform NIL)
@@ -677,6 +708,8 @@
                 (dolist (slot (slots (io-type type)))
                   (finish slot)))
                (T
+                ;; FIXME: The alignment and padding are discarded as soon as we enter UNSPECIFIC territory.
+                ;;        That is obviously pretty dang bad.
                 (finish (make-instance 'io-structure-slot
                                        :value-type type
                                        :octet-size size
@@ -695,6 +728,8 @@
                                   :default-value slot
                                   :octet-size (length slot)
                                   :offset total-offset))))))))
+
+(defstruct io-structure-object)
 
 (defmacro define-io-structure (name &body slots)
   (let ((constructor (intern* 'make- name))
@@ -715,7 +750,7 @@
       `(progn
          (defstruct (,name
                      (:constructor ,constructor)
-                     ,@(when include `((:include ,(second include)))))
+                     (:include ,(if include (second include) 'io-structure-object)))
            ,@(nreverse slotdefs))
 
          (define-io-type (io-structure ,name)
