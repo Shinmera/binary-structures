@@ -447,8 +447,9 @@
                (setf add (octet-size (second case))))
               ((not (eql add (octet-size (second case))))
                (setf add '*)))))
-    (or (unspecific-p size add)
-        (+ size add))))
+    (if add
+        (or (unspecific-p size add) (+ size add))
+        size)))
 
 (define-io-type-parser case (value-type &rest cases)
   (make-instance 'io-case :value-type value-type
