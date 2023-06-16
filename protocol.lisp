@@ -707,6 +707,12 @@
                (:include
                 (dolist (slot (slots (io-type type)))
                   (finish slot)))
+               ((NIL)
+                (finish (make-instance 'io-structure-magic
+                                       :value-type type
+                                       :octet-size size
+                                       :offset (or (unspecific-p offset)
+                                                   (* (ceiling offset align) align)))))
                (T
                 ;; FIXME: The alignment and padding are discarded as soon as we enter UNSPECIFIC territory.
                 ;;        That is obviously pretty dang bad.
@@ -744,6 +750,7 @@
              (dolist (slot (slots (io-type (second slot))))
                (push `(,(name slot) ,(default-value slot) :type ,(lisp-type slot))
                      slotdefs)))
+            ((NIL))
             (T
              (push `(,(first slot) ,(default-value (second slot)) :type ,(lisp-type (second slot))) 
                    slotdefs)))))
