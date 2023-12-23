@@ -64,6 +64,7 @@
    #:i
    #:io-string
    #:encoding
+   #:null-terminated-p
    #:io-case
    #:value-type
    #:cases

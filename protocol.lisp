@@ -369,14 +369,18 @@
 
 (defclass io-string (io-type) 
   ((element-count :initarg :element-count :initform '* :accessor element-count)
+   (null-terminated-p :initarg :null-terminated-p :initform T :accessor null-terminated-p)
    (encoding :initarg :encoding :initform :utf-8 :accessor encoding)))
 
 (define-print-object-method io-string
   "~a ~a" encoding element-count)
 
 (defmethod read-form ((backend io-backend) (type io-string))
-  `(let ((octet ,(read-form backend (make-instance 'io-vector :element-count (element-count type)))))
-     (babel:octets-to-string octet :encoding ,(encoding type))))
+  `(let* ((octet ,(read-form backend (make-instance 'io-vector :element-count (element-count type))))
+          (end ,(if (null-terminated-p type)
+                    `(string-length octet ,(encoding type))
+                    0)))
+     (babel:octets-to-string octet :encoding ,(encoding type) :end end)))
 
 (defmethod write-form ((backend io-backend) (type io-string) value-variable)
   `(let ((octets (babel:string-to-octets ,value-variable :encoding ,(encoding type))))
@@ -395,10 +399,12 @@
 
 (defmethod initargs append ((type io-string))
   (list :encoding (encoding type)
+        :null-terminated-p (null-terminated-p type)
         :element-count (element-count type)))
 
-(define-io-type-parser string (&optional (element-count '*) (encoding :utf-8))
+(define-io-type-parser string (&optional (element-count '*) (encoding :utf-8) (null-terminated-p T))
   (make-instance 'io-string :element-count element-count
+                            :null-terminated-p null-terminated-p
                             :encoding encoding))
 
 (defclass io-case (io-type)

@@ -41,3 +41,7 @@
 
 (deftype index ()
   `(integer 0 ,(1- ARRAY-DIMENSION-LIMIT)))
+
+(defun string-length (octets &optional (encoding :utf-8))
+  (cffi:with-pointer-to-vector-data (ptr octets)
+    (cffi::foreign-string-length ptr :encoding encoding)))

@@ -507,13 +507,22 @@ See IO-VECTOR (type)")
 
 This type parses from the representation
 
-  (STRING ELEMENT-COUNT [ENCODING])
+  (STRING ELEMENT-COUNT [ENCODING] [NULL-TERMINATED-P])
 
 The encoding defaults to UTF-8.
 
 See ELEMENT-COUNT
 See ENCODING
+See NULL-TERMINATED-P
 See IO-TYPE (type)")
+
+  (function null-terminated-p
+    "Accesses whether the string is terminated by nulls or not.
+
+This will truncate such strings even when they have a specific length
+that goes beyond the first null byte.
+
+See IO-STRING (type)")
 
   (function encoding
     "Accesses the encoding of the string.
