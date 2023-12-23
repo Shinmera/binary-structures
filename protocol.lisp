@@ -16,7 +16,7 @@
 (define-condition end-of-storage (error binary-structures-condition)
   ((index :initarg :index :initform NIL :reader index)
    (end :initarg :end :initform NIL :reader end))
-  (:report (lambda (c s) (format s "Failed to parse, as the storage backend ran out of space~@[~%at ~d (~4x), trying to go beyond ~d (~4x)~]"
+  (:report (lambda (c s) (format s "Failed to parse, as the storage backend ran out of space~@[~%at ~d (~:*~4x), trying to go beyond ~d (~:*~4x)~]"
                                  (index c) (end c)))))
 
 (define-condition unknown-value (error binary-structures-condition)
