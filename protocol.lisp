@@ -620,7 +620,8 @@
         ,(octet-size-form last (list (intern* (value-type type) '- (name last)) value-variable)))))
 
 (defmethod initargs append ((type io-structure))
-  (list :value-type (value-type type)
+  (list :name (name type)
+        :value-type (value-type type)
         :constructor (constructor type)
         :slots (slots type)))
 
