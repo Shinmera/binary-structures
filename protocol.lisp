@@ -229,7 +229,7 @@
    (order :initarg :order :initform :little-endian :accessor order)))
 
 (defmethod initargs append ((type numeric-type))
-  (list :octet-size (octet-size type)))
+  (list :octet-size (octet-size type) :order (order type)))
 
 (defmethod read-form :after ((backend io-backend) (type numeric-type))
   (setf (offset backend) (or (unspecific-p (offset backend) (octet-size type))
