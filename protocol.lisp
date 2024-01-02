@@ -229,7 +229,7 @@
    (order :initarg :order :initform :little-endian :accessor order)))
 
 (defmethod initargs append ((type numeric-type))
-  (list :octet-size (octet-size type)))
+  (list :octet-size (octet-size type) :order (order type)))
 
 (defmethod read-form :after ((backend io-backend) (type numeric-type))
   (setf (offset backend) (or (unspecific-p (offset backend) (octet-size type))
@@ -299,7 +299,8 @@
     `(let ((,vector (make-array ,(if (unspecific-p (element-count type))
                                      (read-form backend (element-count type))
                                      (element-count type))
-                               :element-type ',(lisp-type (element-type type)))))
+                                :element-type ',(lisp-type (element-type type))
+                                :initial-element ,(default-value (element-type type)))))
        (dotimes (i (length ,vector) ,vector)
          ,@(when (element-offset type)
              (list (seek-form backend (element-offset type))))
@@ -474,6 +475,144 @@
   (make-instance 'io-case :value-type value-type
                           :cases cases))
 
+;; a numeric type with extra accessors for named combinations of bits
+;; (flags s:uint8 (0 :none) (#b01 :one) (#b10 :two) (#b11 :one-and-two))
+;; todo: option to include another io-flags?
+;;
+;; in addition to specific bit(s), allow naming specific values in a
+;; group of bits, ((mask-field (byte 2 1) :foo (#b010 :A) (#b100 :b) (#b110
+;; :c))) or ((ldb (byte 2 1) :foo (#b01 :a) (#b10 :b) (#b11 :c))) in
+;; this case (slot-name-p x :foo) would return :a,:b,:c, and setting
+;; it to :b would be equivalent to (setf (ldb (byte 2 1) slot) #b10)
+;; also allows ((logand #x123) :foo (#x101 :a) ...) and similar for
+;; split fields, or just for matching specs described that way.
+(defclass io-flags (io-integer)
+  ((cases :initarg :cases :accessor cases)))
+
+(define-io-type-parser flags (base-type &rest cases)
+  ;; allow base type as named type like or (integer 2 :signed :big-endian)
+  (let ((base (parse-io-type base-type)))
+    (assert (typep base 'io-integer))
+    (apply #'make-instance 'io-flags :Cases cases
+           (initargs base))))
+
+(defmacro define-io-flags (name type &body flags)
+  `(progn
+     (define-io-alias ,name (flags ,type ,@flags))
+     (defun ,(intern* name '-as-keys) (x)
+       (let ((flags nil))
+         ,@(loop for (flag name . more) in flags
+                 collect (if (eql flag 0)
+                             `(zerop x)
+                             `(let* ((masked ,(if (numberp flag)
+                                                  `(logand ,flag x)
+                                                  `(,@flag x)))
+                                     (key ,(if more
+                                               `(ecase masked
+                                                  ,@more)
+                                               `(if (= masked ,flag)
+                                                    ,name nil))))
+                                (when key (push key flags)))))
+         flags))))
+
+;;; todo: make this more generic so it can work in places other than
+;;; slots?
+(defmethod define-extra-slot-accessors (type slot-accessor)
+  nil)
+
+(defmethod define-extra-slot-accessors ((type io-flags) slot-accessor)
+  (let ((name (intern* slot-accessor '- 'p)))
+    `(progn
+       (defun ,name (object flag)
+         (let ((v (,slot-accessor object)))
+           (ecase flag
+             ,@(loop
+                 for (n v . cases) in (cases type)
+                 collect
+                 (etypecase n
+                   ((cons symbol)
+                    `(,v
+                      (let ((v (,@n v)))
+                        (case v
+                          ,@(loop for case in cases
+                                  collect case)
+                          (otherwise v)))))
+                   ((eql 0)
+                    `(,v (zerop v)))
+                   (unsigned-byte
+                    `(,v (= ,n (logand ,n v)))))))))
+       (defun (setf ,name)
+           (new object flag)
+         (symbol-macrolet ((v (,slot-accessor object)))
+           (ecase flag
+             ,@(loop
+                 for (n v . cases) in (cases type)
+                 collect
+                 (etypecase n
+                   ;; possibly should rename this to MASK or
+                   ;; something instead of pretending LOGAND is an
+                   ;; accessor?
+                   ((cons (eql logand))
+                    (let ((new (gensym))
+                          (mask (second n)))
+                      `(,v
+                        (let ((,new new))
+                          (if (numberp ,new)
+                              ;; allow passthrough of raw values (todo:
+                              ;; make sure they fit?)
+                              (setf v (logior v (logior (logandc2 v ,mask))
+                                              (logand ,mask ,new)))
+                              (case ,new
+                                ,@(loop
+                                    for (num key) in cases
+                                    collect `(,key
+                                              (setf v (logior
+                                                       (logandc2 v ,mask)
+                                                       ,num))))
+                                (otherwise
+                                 (error "unknown key ~s for field ~s of ~s~%"
+                                        v ',v ',slot-accessor))))))))
+                   ((cons symbol) ;; (cons (member mask-field ldb)) ?
+                    (let ((new (gensym)))
+                      `(,v
+                        (let ((,new new))
+                          (if (numberp ,new)
+                              ;; allow passthrough of raw values (todo:
+                              ;; make sure they fit?)
+                              (setf (,@n v) ,new)
+                              (case ,new
+                                ,@(loop for (num key) in cases
+                                        collect `(,key (setf (,@n v) ,num)))
+                                (otherwise
+                                 (error "unknown key ~s for field ~s of ~s~%"
+                                        v ',v ',slot-accessor))))))))
+                   ((eql 0)
+                    ;; setting field to all 1s is probably not
+                    ;; usually the right thing to do, so just error
+                    ;; for now? Setting all defined flags might be
+                    ;; closer to reasonable, but still ugly.
+                    `(,v (if new
+                             (setf v 0)
+                             (error "can't set a 'none' flag to false"))))
+                   (t
+                    ;; possibly should refuse to clear multiple bits
+                    ;; at once as well? seems a bit more reasonable
+                    ;; than the none case though, so allowing for
+                    ;; now.
+                    `(,v (if new
+                             (setf v (logior ,n v))
+                             (setf v (logandc1 ,n v))))))))
+           new))
+       ;; if there are any multibit flags, make an accessor for each
+       ;; of them too, so we can use it with SLOT
+       ,@(loop for (n v . cases) in (cases type)
+               when cases
+                 append (let ((n2 (intern* slot-accessor '- v)))
+                          `((defun ,n2 (object)
+                              (,name object ',v))
+                            (defun (setf ,n2) (new object)
+                              (setf (,name object ',v) new))))))))
+
 (defclass io-value (io-type)
   ((form :initarg :form :accessor form)))
 
@@ -572,9 +711,17 @@
   (let ((value (gensym "VALUE")))
     `(let ((,value ,(default-value type)))
        (macrolet ((slot (name &rest descendants)
-                    (let ((value (if (symbolp name)
-                                     (list (intern* ',(lisp-type type) '- name) ',value)
-                                     name)))
+                    (let ((value (cond
+                                   ((symbolp name)
+                                    (list (intern* ',(lisp-type type) '- name) ',value))
+                                   ((typep name '(cons symbol symbol))
+                                    ;; bitfield flag
+                                    (list (intern* ',(lisp-type type)
+                                                   '- (car name) '-p)
+                                          ',value
+                                          (cdr name)))
+                                   (t
+                                    name))))
                       (dolist (name descendants value)
                         (setf value `(slot-value ,value ',name))))))
          ,@(loop for slot in (slots type)
@@ -620,7 +767,8 @@
         ,(octet-size-form last (list (intern* (value-type type) '- (name last)) value-variable)))))
 
 (defmethod initargs append ((type io-structure))
-  (list :value-type (value-type type)
+  (list :name (name type)
+        :value-type (value-type type)
         :constructor (constructor type)
         :slots (slots type)))
 
@@ -766,6 +914,14 @@
            :constructor ',constructor
            :slots (parse-io-structure-slots ',(if include (list* include slots) slots)))
 
+         ,@(loop for slot in (parse-io-structure-slots
+                              (if include (list* include slots) slots))
+                 ;; possibly should just parse these in
+                 ;; parse-io-structure-slots?
+                 for p = (parse-io-type (value-type slot))
+                 when (define-extra-slot-accessors p
+                          (intern* name '- (name slot)))
+                   collect it)
          (define-io-functions ,name)))))
 
 (defclass bounds-checked-io-backend (io-backend)
@@ -797,7 +953,8 @@
     `(let ((,vector (make-array ,(if (unspecific-p (element-count type))
                                      (read-form backend (element-count type))
                                      (element-count type))
-                                :element-type ',(lisp-type (element-type type)))))
+                                :element-type ',(lisp-type (element-type type))
+                                :initial-element ,(default-value (element-type type)))))
        (declare (optimize #+sbcl (sb-c::insert-array-bounds-checks 0)))
        ,@(unless (or (element-offset type)
                      (typep (io-type (element-type type) NIL) '(or null io-structure)))
