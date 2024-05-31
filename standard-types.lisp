@@ -22,7 +22,7 @@
 (define-io-types io-integer
   ((s :signed-p T) (u :signed-p NIL))
   int
-  ((8 :octet-size 1) (16 :octet-size 2) (32 :octet-size 4) (64 :octet-size 8) (128 :octet-size 16))
+  ((8 :octet-size 1) (16 :octet-size 2) (24 :octet-size 3) (32 :octet-size 4) (64 :octet-size 8) (128 :octet-size 16))
   ((|| :order :little-endian) (-be :order :big-endian)))
 
 (define-io-types io-float
