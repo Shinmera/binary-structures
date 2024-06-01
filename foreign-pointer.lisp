@@ -13,11 +13,27 @@
      (,(intern* 'write-io-foreign-pointer- (lisp-type type)) value storage size)))
 
 (defmacro read-mem (pointer type &optional (octets `(cffi:foreign-type-size ,type)))
-  `(prog1 (cffi:mem-ref ,pointer ,type)
-    (cffi:incf-pointer ,pointer ,octets)))
+  `(prog1 ,(case type
+             (:uint24
+              `(logior (cffi:mem-ref ,pointer :uint16)
+                       (ash (cffi:mem-ref ,pointer :uint8 16) 16)))
+             (:int24
+              `(logior (cffi:mem-ref ,pointer :uint16)
+                       (ash (cffi:mem-ref ,pointer :int8 16) 16)))
+             (T
+              `(cffi:mem-ref ,pointer ,type)))
+     (cffi:incf-pointer ,pointer ,octets)))
 
 (defmacro write-mem (value pointer type &optional (octets `(cffi:foreign-type-size ,type)))
-  `(prog1 (setf (cffi:mem-ref ,pointer ,type) ,value)
+  `(prog1 ,(case type
+             (:uint24
+              `(setf (cffi:mem-ref ,pointer :uint16) (ldb (byte 16 0) ,value)
+                     (cffi:mem-ref ,pointer :uint8 16) (ash ,value -16)))
+             (:int24
+              `(setf (cffi:mem-ref ,pointer :uint16) (ldb (byte 16 0) ,value)
+                     (cffi:mem-ref ,pointer :int8 16) (ash ,value -16)))
+             (T
+              `(setf (cffi:mem-ref ,pointer ,type) ,value)))
      (cffi:incf-pointer ,pointer ,octets)))
 
 (defmethod read-defun ((backend io-foreign-pointer) (type io-type))
