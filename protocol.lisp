@@ -743,35 +743,37 @@
 (defstruct io-structure-object)
 
 (defmacro define-io-structure (name &body slots)
-  (let ((constructor (intern* 'make- name))
-        (include (when (and (listp (first slots)) (eql :include (caar slots)))
-                   (pop slots)))
-        (slotdefs ()))
-    (handler-bind ((no-such-io-type #'continue))
-      (dolist (slot slots)
-        (when (consp slot)
-          (case (first slot)
-            (:include
-             (dolist (slot (slots (io-type (second slot))))
-               (push `(,(name slot) ,(default-value slot) :type ,(lisp-type slot))
-                     slotdefs)))
-            ((NIL))
-            (T
-             (push `(,(first slot) ,(default-value (second slot)) :type ,(lisp-type (second slot))) 
-                   slotdefs)))))
-      `(progn
-         (defstruct (,name
-                     (:constructor ,constructor)
-                     (:include ,(if include (second include) 'io-structure-object)))
-           ,@(nreverse slotdefs))
+  (destructuring-bind (name &rest struct-args) (if (listp name) name (list name))
+    (let ((constructor (intern* 'make- name))
+          (include (when (and (listp (first slots)) (eql :include (caar slots)))
+                     (pop slots)))
+          (slotdefs ()))
+      (handler-bind ((no-such-io-type #'continue))
+        (dolist (slot slots)
+          (when (consp slot)
+            (case (first slot)
+              (:include
+               (dolist (slot (slots (io-type (second slot))))
+                 (push `(,(name slot) ,(default-value slot) :type ,(lisp-type slot))
+                       slotdefs)))
+              ((NIL))
+              (T
+               (push `(,(first slot) ,(default-value (second slot)) :type ,(lisp-type (second slot))) 
+                     slotdefs)))))
+        `(progn
+           (defstruct (,name
+                       (:constructor ,constructor)
+                       (:include ,(if include (second include) 'io-structure-object))
+                       ,@struct-args)
+             ,@(nreverse slotdefs))
 
-         (define-io-type (io-structure ,name)
-           :name ',name
-           :value-type ',name
-           :constructor ',constructor
-           :slots (parse-io-structure-slots ',(if include (list* include slots) slots)))
+           (define-io-type (io-structure ,name)
+             :name ',name
+             :value-type ',name
+             :constructor ',constructor
+             :slots (parse-io-structure-slots ',(if include (list* include slots) slots)))
 
-         (define-io-functions ,name)))))
+           (define-io-functions ,name))))))
 
 (defclass bounds-checked-io-backend (io-backend)
   ())
