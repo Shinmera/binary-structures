@@ -620,9 +620,16 @@
            (octet-size last)))))
 
 (defmethod octet-size-form ((type io-structure) value-variable)
-  (let ((last (car (last (slots type)))))
-    `(+ ,(offset last)
-        ,(octet-size-form last (list (intern* (value-type type) '- (name last)) value-variable)))))
+  (let ((slots (slots type)))
+    ;; Combine the most specific offset with the dynamic sizes of unspecific slots
+    `(+ ,@(loop with last = ()
+                do (when (or (null slots) (unspecific-p (offset (car slots)) (octet-size (car slots))))
+                     (return last))
+                   (let ((slot (pop slots)))
+                     (setf last (list (offset slot)
+                                      (octet-size slot)))))
+        ,@(loop for slot in slots
+                collect (octet-size-form slot (list (intern* (value-type type) '- (name slot)) value-variable))))))
 
 (defmethod initargs append ((type io-structure))
   (list :value-type (value-type type)
