@@ -29,7 +29,7 @@
 (defmethod read-defun ((backend io-octet-vector) (type io-type))
   `(define-typed-function ,(intern* 'read- (type-of backend) '- (lisp-type type)) 
        ((vector (simple-array (unsigned-byte 8) (*))) (start index) (end index))
-       (values ,(lisp-type type) index)
+       (values ,(lisp-type type) index &optional)
      (declare (ignorable end))
      (let ((index start))
        (declare (type index index))
@@ -43,7 +43,7 @@
 (defmethod write-defun ((backend io-octet-vector) (type io-type))
   `(define-typed-function ,(intern* 'write- (type-of backend) '- (lisp-type type))
        ((value ,(lisp-type type)) (vector (simple-array (unsigned-byte 8) (*))) (start index) (end index))
-       index
+       (values index &optional)
      (declare (ignorable end))
      (let ((index start))
        (declare (type index index))

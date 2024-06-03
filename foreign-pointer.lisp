@@ -39,7 +39,7 @@
 (defmethod read-defun ((backend io-foreign-pointer) (type io-type))
   `(define-typed-function ,(intern* 'read- (type-of backend) '- (lisp-type type))
        ((pointer cffi:foreign-pointer) (size index))
-       (values ,(lisp-type type) cffi:foreign-pointer)
+       (values ,(lisp-type type) cffi:foreign-pointer &optional)
      (declare (ignorable size))
      (let ((start pointer)
            (pointer pointer))
@@ -56,7 +56,7 @@
 (defmethod write-defun ((backend io-foreign-pointer) (type io-type))
   `(define-typed-function ,(intern* 'write- (type-of backend) '- (lisp-type type)) 
        ((value ,(lisp-type type)) (pointer cffi:foreign-pointer) (size index))
-       cffi:foreign-pointer
+       (values cffi:foreign-pointer &optional)
      (declare (ignorable size))
      (let ((start pointer)
            (pointer pointer))
