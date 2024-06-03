@@ -358,8 +358,12 @@
 (defmethod octet-size-form ((type io-vector) value-variable)
   `(if (= 0 (length ,value-variable))
        0
-       (* (length ,value-variable)
-          ,(octet-size-form (element-type type) `(aref ,value-variable 0)))))
+       ,(if (unspecific-p (octet-size (element-type type)))
+            (let ((var (gensym "EL")))
+              `(loop for ,var across ,value-variable
+                     sum ,(octet-size-form (element-type type) var)))
+            `(* (length ,value-variable)
+                ,(octet-size-form (element-type type) `(aref ,value-variable 0))))))
 
 (defmethod initargs append ((type io-vector))
   (list :element-type (element-type type)
