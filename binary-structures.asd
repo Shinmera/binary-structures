@@ -19,5 +19,6 @@
   :depends-on (:cffi
                :babel
                :nibbles
+               :form-fiddle
                :trivial-extensible-sequences
                :documentation-utils))

@@ -666,6 +666,13 @@ See IO-STRUCTURE-SLOT (type)")
   (function define-io-structure
     "Define an IO-STRUCTURE type instance.
 
+NAME may either be a symbol naming the structure and type, or a list
+of that name and defstruct options for the resulting structure
+definition.
+
+BODY may be a number of slot definitions preceded by additional
+keyword arguments to the resulting structure type definition.
+
 This will do the following:
   1. Define a structure via DEFSTRUCT corresponding to the specified
      name and slots.

@@ -544,15 +544,14 @@
   ((value-type :initarg :value-type :accessor value-type)
    (constructor :initarg :constructor :accessor constructor)
    (slots :initarg :slots :initform () :accessor slots)
-   (name :initarg :name :initform NIL :accessor name)))
+   (name :initarg :name :initform NIL :accessor name)
+   (size-form :initarg :size-form :initarg :octet-size :initform NIL :accessor size-form)))
 
 (define-print-object-method io-structure
   "~a" value-type)
 
-(defmethod describe-object ((structure io-structure) stream)
-  (format stream "~a~%  [~s]~%~%"
-          (name structure) (type-of structure))
-  (format stream "ADDRESS  SIZE TYPE     NAME")
+(defmethod describe-object :after ((structure io-structure) stream)
+  (format stream "~&~%ADDRESS  SIZE TYPE     NAME")
   (loop for slot in (slots structure)
         do (format stream "~%~:[        ~;~:*~8,'0x~] ~4a ~8a ~a"
                    (unless (unspecific-p (offset slot))
@@ -577,15 +576,18 @@
      (let ((*io-structure-inline* (if (eq *io-structure-inline* :always) :always NIL)))
        (call-next-method)))))
 
+(defun %slot-macrolet (type value)
+  `(slot (name &rest descendants)
+         (let ((value (if (symbolp name)
+                          (list (intern* ',(lisp-type type) '- name) ',value)
+                          name)))
+           (dolist (name descendants value)
+             (setf value `(slot-value ,value ',name))))))
+
 (defmethod read-form ((backend io-backend) (type io-structure))
   (let ((value (gensym "VALUE")))
     `(let ((,value ,(default-value type)))
-       (macrolet ((slot (name &rest descendants)
-                    (let ((value (if (symbolp name)
-                                     (list (intern* ',(lisp-type type) '- name) ',value)
-                                     name)))
-                      (dolist (name descendants value)
-                        (setf value `(slot-value ,value ',name))))))
+       (macrolet (,(%slot-macrolet type value))
          ,@(loop for slot in (slots type)
                  for align = (seek-form backend (offset slot))
                  when align collect align
@@ -597,12 +599,7 @@
 
 (defmethod write-form ((backend io-backend) (type io-structure) value-variable)
   (let ((value (gensym "VALUE")))
-    `(macrolet ((slot (name &rest descendants)
-                  (let ((value (if (symbolp name)
-                                   (list (intern* ',(lisp-type type) '- name) ',value-variable)
-                                   name)))
-                    (dolist (name descendants value)
-                      (setf value `(slot-value ,value ',name))))))
+    `(macrolet (,(%slot-macrolet type value-variable))
        ,@(loop for slot in (slots type)
                for align = (seek-form backend (offset slot))
                when align collect align
@@ -624,21 +621,25 @@
            (octet-size last)))))
 
 (defmethod octet-size-form ((type io-structure) value-variable)
-  (let ((slots (slots type)))
-    ;; Combine the most specific offset with the dynamic sizes of unspecific slots
-    `(+ ,@(loop with last = ()
-                do (when (or (null slots) (unspecific-p (offset (car slots)) (octet-size (car slots))))
-                     (return last))
-                   (let ((slot (pop slots)))
-                     (setf last (list (offset slot)
-                                      (octet-size slot)))))
-        ,@(loop for slot in slots
-                collect (octet-size-form slot (list (intern* (value-type type) '- (name slot)) value-variable))))))
+  (if (size-form type)
+      `(macrolet (,(%slot-macrolet type value-variable))
+         ,(size-form type))
+      (let ((slots (slots type)))
+        ;; Combine the most specific offset with the dynamic sizes of unspecific slots
+        `(+ ,@(loop with last = ()
+                    do (when (or (null slots) (unspecific-p (offset (car slots)) (octet-size (car slots))))
+                         (return last))
+                       (let ((slot (pop slots)))
+                         (setf last (list (offset slot)
+                                          (octet-size slot)))))
+            ,@(loop for slot in slots
+                    collect (octet-size-form slot (list (intern* (value-type type) '- (name slot)) value-variable)))))))
 
 (defmethod initargs append ((type io-structure))
   (list :value-type (value-type type)
         :constructor (constructor type)
-        :slots (slots type)))
+        :slots (slots type)
+        :size-form (size-form type)))
 
 (defmethod find-slot (name (structure io-structure))
   (or (find name (slots structure) :key #'name)
@@ -755,36 +756,39 @@
 
 (defmacro define-io-structure (name &body slots)
   (destructuring-bind (name &rest struct-args) (if (listp name) name (list name))
-    (let ((constructor (intern* 'make- name))
-          (include (when (and (listp (first slots)) (eql :include (caar slots)))
-                     (pop slots)))
-          (slotdefs ()))
-      (handler-bind ((no-such-io-type #'continue))
-        (dolist (slot slots)
-          (when (consp slot)
-            (case (first slot)
-              (:include
-               (dolist (slot (slots (io-type (second slot))))
-                 (push `(,(name slot) ,(default-value slot) :type ,(lisp-type slot))
-                       slotdefs)))
-              ((NIL))
-              (T
-               (push `(,(first slot) ,(default-value (second slot)) :type ,(lisp-type (second slot))) 
-                     slotdefs)))))
-        `(progn
-           (defstruct (,name
-                       (:constructor ,constructor)
-                       (:include ,(if include (second include) 'io-structure-object))
-                       ,@struct-args)
-             ,@(nreverse slotdefs))
+    (form-fiddle:with-body-options (slots io-type-options) slots
+      (let ((constructor (intern* 'make- name))
+            (include (when (and (listp (first slots)) (eql :include (caar slots)))
+                       (pop slots)))
+            (slotdefs ()))
+        (handler-bind ((no-such-io-type #'continue))
+          (dolist (slot slots)
+            (when (consp slot)
+              (case (first slot)
+                (:include
+                 (dolist (slot (slots (io-type (second slot))))
+                   (push `(,(name slot) ,(default-value slot) :type ,(lisp-type slot))
+                         slotdefs)))
+                ((NIL))
+                (T
+                 (push `(,(first slot) ,(default-value (second slot)) :type ,(lisp-type (second slot))) 
+                       slotdefs)))))
+          `(progn
+             (defstruct (,name
+                         (:constructor ,constructor)
+                         (:include ,(if include (second include) 'io-structure-object))
+                         ,@struct-args)
+               ,@(nreverse slotdefs))
 
-           (define-io-type (io-structure ,name)
-             :name ',name
-             :value-type ',name
-             :constructor ',constructor
-             :slots (parse-io-structure-slots ',(if include (list* include slots) slots)))
+             (define-io-type (io-structure ,name)
+               :name ',name
+               :value-type ',name
+               :constructor ',constructor
+               :slots (parse-io-structure-slots ',(if include (list* include slots) slots))
+               ,@(loop for (k v) on io-type-options by #'cddr
+                       collect k collect `',v))
 
-           (define-io-functions ,name))))))
+             (define-io-functions ,name)))))))
 
 (defclass bounds-checked-io-backend (io-backend)
   ())
