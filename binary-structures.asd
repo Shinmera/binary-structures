@@ -14,9 +14,9 @@
                (:file "standard-types")
                (:file "stream")
                (:file "octet-vector")
-               (:file "foreign-pointer")
+               (:file "foreign-pointer" :if-feature :cffi)
                (:file "documentation"))
-  :depends-on (:cffi
+  :depends-on ((:feature (:not :mezzano) :cffi)
                :babel
                :nibbles
                :form-fiddle
