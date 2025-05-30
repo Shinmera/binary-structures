@@ -36,8 +36,8 @@
 
 (defclass io-type () ())
 
-(defgeneric read-defun (backend io-type))
-(defgeneric write-defun (backend io-type))
+(defgeneric read-defun (backend io-type &optional name))
+(defgeneric write-defun (backend io-type &optional name))
 (defgeneric call-read-form (backend io-type))
 (defgeneric call-write-form (backend io-type value-variable))
 (defgeneric read-form (backend io-type))
@@ -52,22 +52,24 @@
   (:method-combination append :most-specific-first))
 (defgeneric parse-io-type (type &rest args))
 
-(defmethod read-defun ((backend symbol) io-type)
-  (read-defun (make-instance backend) io-type))
+(defmethod read-defun ((backend symbol) io-type &optional name)
+  (read-defun (make-instance backend) io-type name))
 
-(defmethod read-defun (backend (io-type T))
-  (read-defun backend (parse-io-type io-type)))
+(defmethod read-defun (backend (io-type T) &optional name)
+  (read-defun backend (parse-io-type io-type) name))
 
-(defmethod read-defun :before ((backend io-backend) io-type)
+(defmethod read-defun :before ((backend io-backend) io-type &optional name)
+  (declare (ignore name))
   (setf (offset backend) 0))
 
-(defmethod write-defun ((backend symbol) io-type)
-  (write-defun (make-instance backend) io-type))
+(defmethod write-defun ((backend symbol) io-type &optional name)
+  (write-defun (make-instance backend) io-type name))
 
-(defmethod write-defun (backend (io-type T))
-  (write-defun backend (parse-io-type io-type)))
+(defmethod write-defun (backend (io-type T) &optional name)
+  (write-defun backend (parse-io-type io-type) name))
 
-(defmethod write-defun :before ((backend io-backend) io-type)
+(defmethod write-defun :before ((backend io-backend) io-type &optional name)
+  (declare (ignore name))
   (setf (offset backend) 0))
 
 (defmethod read-form ((backend symbol) io-type)

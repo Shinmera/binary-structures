@@ -20,15 +20,15 @@
                                    :direction :output)
      (,(intern* 'write-io-stream- (lisp-type type)) value stream)))
 
-(defmethod read-defun ((backend io-stream) (type io-type))
-  `(define-typed-function ,(intern* 'read- (type-of backend) '- (lisp-type type))
+(defmethod read-defun ((backend io-stream) (type io-type) &optional name)
+  `(define-typed-function ,(or name (intern* 'read- (type-of backend) '- (lisp-type type)))
        ((stream stream))
        ,(lisp-type type)
      (handler-bind ((end-of-file (lambda (e) (declare (ignore e)) (error 'end-of-storage))))
        ,(read-form backend type))))
 
-(defmethod write-defun ((backend io-stream) (type io-type))
-  `(define-typed-function ,(intern* 'write- (type-of backend) '- (lisp-type type))
+(defmethod write-defun ((backend io-stream) (type io-type) &optional name)
+  `(define-typed-function ,(or name (intern* 'write- (type-of backend) '- (lisp-type type)))
        ((value ,(lisp-type type)) (stream stream))
        T
      (handler-bind ((end-of-file (lambda (e) (declare (ignore e)) (error 'end-of-storage))))

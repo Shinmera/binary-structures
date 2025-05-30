@@ -26,8 +26,8 @@
      (replace array storage :start2 start :end2 end)
      (,(intern* 'write-io-octet-vector- (lisp-type type)) value array 0 (length array))))
 
-(defmethod read-defun ((backend io-octet-vector) (type io-type))
-  `(define-typed-function ,(intern* 'read- (type-of backend) '- (lisp-type type)) 
+(defmethod read-defun ((backend io-octet-vector) (type io-type) &optional name)
+  `(define-typed-function ,(or name (intern* 'read- (type-of backend) '- (lisp-type type)))
        ((vector (simple-array (unsigned-byte 8) (*))) (start index) (end index))
        (values ,(lisp-type type) index &optional)
      (declare (ignorable end))
@@ -42,8 +42,8 @@
          (values ,(read-form backend type)
                  index)))))
 
-(defmethod write-defun ((backend io-octet-vector) (type io-type))
-  `(define-typed-function ,(intern* 'write- (type-of backend) '- (lisp-type type))
+(defmethod write-defun ((backend io-octet-vector) (type io-type) &optional name)
+  `(define-typed-function ,(or name (intern* 'write- (type-of backend) '- (lisp-type type)))
        ((value ,(lisp-type type)) (vector (simple-array (unsigned-byte 8) (*))) (start index) (end index))
        (values index &optional)
      (declare (ignorable end))

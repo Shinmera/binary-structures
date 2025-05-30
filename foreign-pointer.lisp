@@ -36,8 +36,8 @@
               `(setf (cffi:mem-ref ,pointer ,type) ,value)))
      (cffi:incf-pointer ,pointer ,octets)))
 
-(defmethod read-defun ((backend io-foreign-pointer) (type io-type))
-  `(define-typed-function ,(intern* 'read- (type-of backend) '- (lisp-type type))
+(defmethod read-defun ((backend io-foreign-pointer) (type io-type) &optional name)
+  `(define-typed-function ,(or name (intern* 'read- (type-of backend) '- (lisp-type type)))
        ((pointer cffi:foreign-pointer) (size index))
        (values ,(lisp-type type) cffi:foreign-pointer &optional)
      (declare (ignorable size))
@@ -55,8 +55,8 @@
          (values ,(read-form backend type)
                  pointer)))))
 
-(defmethod write-defun ((backend io-foreign-pointer) (type io-type))
-  `(define-typed-function ,(intern* 'write- (type-of backend) '- (lisp-type type)) 
+(defmethod write-defun ((backend io-foreign-pointer) (type io-type) &optional name)
+  `(define-typed-function ,(or name (intern* 'write- (type-of backend) '- (lisp-type type)))
        ((value ,(lisp-type type)) (pointer cffi:foreign-pointer) (size index))
        (values cffi:foreign-pointer &optional)
      (declare (ignorable size))
