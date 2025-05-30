@@ -282,7 +282,9 @@
                              :order order))
 
 (defmethod read-form :around (backend (type io-boolean))
-  `(< 0 ,(call-next-method)))
+  `(< 0 (the ,(list (if (signed-p type) 'signed-byte 'unsigned-byte)
+                    (* 8 (octet-size type)))
+             ,(call-next-method))))
 
 (defmethod write-form :around (backend (type io-boolean) value-variable)
   (call-next-method backend type `(if ,value-variable 1 0)))

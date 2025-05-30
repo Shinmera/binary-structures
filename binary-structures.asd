@@ -15,6 +15,7 @@
                (:file "stream")
                (:file "octet-vector")
                (:file "foreign-pointer" :if-feature :cffi)
+               (:file "standard-accessors")
                (:file "documentation"))
   :depends-on ((:feature (:not :mezzano) :cffi)
                :babel
