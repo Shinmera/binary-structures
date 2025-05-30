@@ -262,6 +262,29 @@
                                          ((:unsigned NIL) NIL))
                              :order order))
 
+(defclass io-boolean (io-integer)
+  ((octet-size :initform 1)
+   (signed-p :initform NIL)))
+
+(defmethod default-value ((type io-boolean))
+  NIL)
+
+(defmethod lisp-type ((type io-boolean))
+  'boolean)
+
+(define-io-type-parser boolean (&optional (size 1) (signedness) (order :little-endian))
+  (make-instance 'io-boolean :octet-size size
+                             :signed-p (ecase signedness
+                                         ((:signed T) T)
+                                         ((:unsigned NIL) NIL))
+                             :order order))
+
+(defmethod read-form :around (backend (type io-boolean))
+  `(< 0 ,(call-next-method)))
+
+(defmethod write-form :around (backend (type io-boolean) value-variable)
+  (call-next-method backend type `(if ,value-variable 1 0)))
+
 (defclass io-float (numeric-type)
   ())
 

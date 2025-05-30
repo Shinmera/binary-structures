@@ -55,6 +55,7 @@
    #:order
    #:io-integer
    #:signed-p
+   #:io-boolean
    #:io-float
    #:io-vector
    #:element-type

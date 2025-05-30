@@ -36,3 +36,5 @@
    (utf32 :encoding :utf-32)
    (latin1 :encoding :latin-1))
   -string)
+
+(define-io-type (io-boolean boolean))
