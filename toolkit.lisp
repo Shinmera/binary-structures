@@ -29,7 +29,9 @@
                                       collect (cond ((listp arg) (second arg))
                                                     ((find arg LAMBDA-LIST-KEYWORDS) arg)
                                                     (T T)))
-                               ,retval)
+                               ,(if (and (listp retval) (eql 'values (first retval)))
+                                    retval
+                                    `(values ,retval &optional)))
                      ,name))
      (defun ,name ,(loop for arg in args collect (if (listp arg) (first arg) arg))
        (declare (optimize speed (safety 1) (space 0)))
