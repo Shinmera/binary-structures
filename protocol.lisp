@@ -463,26 +463,40 @@
              (T (error 'unknown-value :value ,value :accepted ',(mapcar #'first (cases type))))))))
 
 (defmethod write-form ((backend io-backend) (type io-case) value)
-  `(cond ,@(loop for (form test) in (cases type)
-                 collect (list (etypecase test
-                                 (number `(= ,value ,test))
-                                 (character `(char= ,value ,test))
-                                 (string `(string= ,value ,test))
-                                 (vector `(equalp ,value ,test))
-                                 ((or keyword (eql T) (eql NIL)) `(eq ,value ,test))
-                                 (cons
-                                  (if (eql 'quote (car test))
-                                      `(eq ,value ,test)
-                                      `(typep ,value ',(lisp-type test))))
-                                 (symbol `(typep ,value ',(lisp-type test))))
-                               (write-form backend (value-type type) form)
-                               (typecase test
-                                 ((and symbol (not (or keyword (eql T) (eql NIL))))
-                                  (write-form backend test value))
-                                 (cons
-                                  (unless (eql 'quote (car test))
-                                    (write-form backend test value))))))
-         (T (error 'unknown-value :value ,value :accepted ',(mapcar #'first (cases type))))))
+  (let ((start-offset (offset backend))
+        (reduced-offsets NIL))
+    (prog1 `(cond ,@(loop for (form test) in (cases type)
+                          collect (list (etypecase test
+                                          (number `(= ,value ,test))
+                                          (character `(char= ,value ,test))
+                                          (string `(string= ,value ,test))
+                                          (vector `(equalp ,value ,test))
+                                          ((or keyword (eql T) (eql NIL)) `(eq ,value ,test))
+                                          (cons
+                                           (if (eql 'quote (car test))
+                                               `(eq ,value ,test)
+                                               `(typep ,value ',(lisp-type test))))
+                                          (symbol `(typep ,value ',(lisp-type test))))
+                                        (progn
+                                          ;; Restore the offset to the start to avoid offset
+                                          ;; drifting for each case
+                                          (setf (offset backend) start-offset)
+                                          (write-form backend (value-type type) form))
+                                        (prog1 (typecase test
+                                                 ((and symbol (not (or keyword (eql T) (eql NIL))))
+                                                  (write-form backend test value))
+                                                 (cons
+                                                  (unless (eql 'quote (car test))
+                                                    (write-form backend test value))))
+                                          ;; Reduce the potential offsets of the case values
+                                          ;; to track the static offset
+                                          (cond ((null reduced-offsets)
+                                                 (setf reduced-offsets (offset backend)))
+                                                ((unspecific-p reduced-offsets))
+                                                ((not (equal reduced-offsets (offset backend)))
+                                                 (setf reduced-offsets '*))))))
+                  (T (error 'unknown-value :value ,value :accepted ',(mapcar #'first (cases type)))))
+      (setf (offset backend) reduced-offsets))))
 
 (defmethod lisp-type ((type io-case)) T)
 (defmethod default-value ((type io-case)) NIL)
