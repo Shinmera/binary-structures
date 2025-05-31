@@ -603,37 +603,39 @@
      (let ((*io-structure-inline* (if (eq *io-structure-inline* :always) :always NIL)))
        (call-next-method)))))
 
-(defun %slot-macrolet (type value)
-  `(slot (name &rest descendants)
-         (let ((value (if (symbolp name)
-                          (list (intern* ',(lisp-type type) '- name) ',value)
-                          name)))
-           (dolist (name descendants value)
-             (setf value `(slot-value ,value ',name))))))
+(defun %slot-macrolet (type value &rest body)
+  `(macrolet ((slot (name &rest descendants)
+                (let ((value (if (symbolp name)
+                                 (list (intern* ',(lisp-type type) '- name) ',value)
+                                 name)))
+                  (dolist (name descendants value)
+                    (setf value `(slot-value ,value ',name))))))
+     (symbol-macrolet ((instance ,value))
+       ,@body)))
 
 (defmethod read-form ((backend io-backend) (type io-structure))
   (let ((value (gensym "VALUE")))
     `(let ((,value ,(default-value type)))
-       (macrolet (,(%slot-macrolet type value))
-         ,@(loop for slot in (slots type)
-                 for align = (seek-form backend (offset slot))
-                 when align collect align
-                 collect (if (typep slot 'io-structure-magic)
-                             (read-form backend slot)
-                             `(setf (,(intern* (lisp-type type) '- (name slot)) ,value)
-                                    ,(read-form backend slot)))))
+       ,(apply #'%slot-macrolet type value
+               (loop for slot in (slots type)
+                     for align = (seek-form backend (offset slot))
+                     when align collect align
+                     collect (if (typep slot 'io-structure-magic)
+                                 (read-form backend slot)
+                                 `(setf (,(intern* (lisp-type type) '- (name slot)) ,value)
+                                        ,(read-form backend slot)))))
        ,value)))
 
 (defmethod write-form ((backend io-backend) (type io-structure) value-variable)
   (let ((value (gensym "VALUE")))
-    `(macrolet (,(%slot-macrolet type value-variable))
-       ,@(loop for slot in (slots type)
-               for align = (seek-form backend (offset slot))
-               when align collect align
-               collect (if (typep slot 'io-structure-magic)
-                           (write-form backend slot value-variable)
-                           `(let ((,value (,(intern* (lisp-type type) '- (name slot)) ,value-variable)))
-                              ,(write-form backend slot value)))))))
+    (apply #'%slot-macrolet type value-variable
+           (loop for slot in (slots type)
+                 for align = (seek-form backend (offset slot))
+                 when align collect align
+                 collect (if (typep slot 'io-structure-magic)
+                             (write-form backend slot value-variable)
+                             `(let ((,value (,(intern* (lisp-type type) '- (name slot)) ,value-variable)))
+                                ,(write-form backend slot value)))))))
 
 (defmethod lisp-type ((type io-structure))
   (value-type type))
@@ -649,8 +651,8 @@
 
 (defmethod octet-size-form ((type io-structure) value-variable)
   (if (size-form type)
-      `(macrolet (,(%slot-macrolet type value-variable))
-         ,(size-form type))
+      (%slot-macrolet type value-variable
+                      (size-form type))
       (let ((slots (slots type)))
         ;; Combine the most specific offset with the dynamic sizes of unspecific slots
         `(+ ,@(loop with last = ()

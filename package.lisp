@@ -78,6 +78,7 @@
    #:name
    #:find-slots
    #:slot
+   #:instance
    #:io-structure-slot
    #:io-structure-magic
    #:define-io-structure
