@@ -42,7 +42,7 @@
 (defgeneric call-write-form (backend io-type value-variable))
 (defgeneric read-form (backend io-type))
 (defgeneric write-form (backend io-type value-variable))
-(defgeneric index-form (backend))
+(defgeneric index-form (backend &optional force-dynamic))
 (defgeneric seek-form (backend offset))
 (defgeneric lisp-type (io-type))
 (defgeneric default-value (io-type))
@@ -99,8 +99,8 @@
 (defmethod octet-size-form ((type io-type) value-variable)
   (octet-size type))
 
-(defmethod index-form :around ((backend io-backend))
-  (if (unspecific-p (offset backend))
+(defmethod index-form :around ((backend io-backend) &optional force-dynamic)
+  (if (or force-dynamic (unspecific-p (offset backend)))
       (call-next-method)
       (offset backend)))
 
@@ -629,7 +629,8 @@
 
 (defmethod read-form ((backend io-backend) (type io-structure))
   (let ((value (gensym "VALUE")))
-    `(let ((,value ,(default-value type)))
+    `(let ((relative-offset ,(index-form backend T))
+           (,value ,(default-value type)))
        ,(apply #'%slot-macrolet type value
                (loop for slot in (slots type)
                      for align = (seek-form backend (offset slot))
@@ -642,14 +643,15 @@
 
 (defmethod write-form ((backend io-backend) (type io-structure) value-variable)
   (let ((value (gensym "VALUE")))
-    (apply #'%slot-macrolet type value-variable
-           (loop for slot in (slots type)
-                 for align = (seek-form backend (offset slot))
-                 when align collect align
-                 collect (if (typep slot 'io-structure-magic)
-                             (write-form backend slot value-variable)
-                             `(let ((,value (,(intern* (lisp-type type) '- (name slot)) ,value-variable)))
-                                ,(write-form backend slot value)))))))
+    `(let ((relative-offset ,(index-form backend T)))
+       ,(apply #'%slot-macrolet type value-variable
+               (loop for slot in (slots type)
+                     for align = (seek-form backend (offset slot))
+                     when align collect align
+                     collect (if (typep slot 'io-structure-magic)
+                                 (write-form backend slot value-variable)
+                                 `(let ((,value (,(intern* (lisp-type type) '- (name slot)) ,value-variable)))
+                                    ,(write-form backend slot value))))))))
 
 (defmethod lisp-type ((type io-structure))
   (value-type type))
