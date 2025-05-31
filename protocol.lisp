@@ -784,10 +784,11 @@
 (defmacro define-io-structure (name &body slots)
   (destructuring-bind (name &rest struct-args) (if (listp name) name (list name))
     (form-fiddle:with-body-options (slots io-type-options) slots
-      (let ((constructor (intern* 'make- name))
+      (let ((constructor (or (second (assoc :constructor struct-args)) (intern* 'make- name)))
             (include (when (and (listp (first slots)) (eql :include (caar slots)))
                        (pop slots)))
-            (slotdefs ()))
+            (slotdefs ())
+            (struct-args (remove (assoc :constructor struct-args) struct-args)))
         (handler-bind ((no-such-io-type #'continue))
           (dolist (slot slots)
             (when (consp slot)
