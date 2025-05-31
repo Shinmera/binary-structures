@@ -419,7 +419,14 @@
      (babel:octets-to-string octet :encoding ,(encoding type) :end end)))
 
 (defmethod write-form ((backend io-backend) (type io-string) value-variable)
-  `(let ((octets (babel:string-to-octets ,value-variable :encoding ,(encoding type))))
+  `(let ((octets ,(if (null-terminated-p type)
+                      ;; KLUDGE: babel does not give us a way to write to a vector we allocated
+                      ;;         nor a way to also have the null byte, so we use this disgusting
+                      ;;         hack with a second, constant string that is nothing but the null.
+                      `(babel:concatenate-strings-to-octets ,(encoding type)
+                                                            ,value-variable
+                                                            ,(load-time-value (string (code-char 0))))
+                      `(babel:string-to-octets ,value-variable :encoding ,(encoding type)))))
      ,(write-form backend (make-instance 'io-vector :element-count (element-count type))
                   'octets)))
 
@@ -431,7 +438,8 @@
     (if (numberp count) count '*)))
 
 (defmethod octet-size-form ((type io-string) value-variable)
-  `(babel:string-size-in-octets ,value-variable :encoding ,(encoding type)))
+  `(+ (babel:string-size-in-octets ,value-variable :encoding ,(encoding type))
+      ,(if (null-terminated-p type) 1 0)))
 
 (defmethod initargs append ((type io-string))
   (list :encoding (encoding type)
