@@ -383,14 +383,15 @@
         '*)))
 
 (defmethod octet-size-form ((type io-vector) value-variable)
-  `(if (= 0 (length ,value-variable))
-       0
-       ,(if (unspecific-p (octet-size (element-type type)))
-            (let ((var (gensym "EL")))
-              `(loop for ,var across ,value-variable
-                     sum ,(octet-size-form (element-type type) var)))
-            `(* (length ,value-variable)
-                ,(octet-size-form (element-type type) `(aref ,value-variable 0))))))
+  `(+ ,(if (symbolp (element-count type)) (octet-size-form (element-count type) value-variable) 0)
+      (if (= 0 (length ,value-variable))
+          0
+          ,(if (unspecific-p (octet-size (element-type type)))
+               (let ((var (gensym "EL")))
+                 `(loop for ,var across ,value-variable
+                        sum ,(octet-size-form (element-type type) var)))
+               `(* (length ,value-variable)
+                   ,(octet-size-form (element-type type) `(aref ,value-variable 0)))))))
 
 (defmethod initargs append ((type io-vector))
   (list :element-type (element-type type)
@@ -439,6 +440,7 @@
 
 (defmethod octet-size-form ((type io-string) value-variable)
   `(+ (babel:string-size-in-octets ,value-variable :encoding ,(encoding type))
+      ,(if (symbolp (element-count type)) (octet-size-form (element-count type) value-variable))
       ,(if (null-terminated-p type) 1 0)))
 
 (defmethod initargs append ((type io-string))
