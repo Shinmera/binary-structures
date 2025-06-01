@@ -100,9 +100,9 @@
   (octet-size type))
 
 (defmethod index-form :around ((backend io-backend) &optional force-dynamic)
-  (if (or force-dynamic (unspecific-p (offset backend)))
-      (call-next-method)
-      (offset backend)))
+  `(the index ,(if (or force-dynamic (unspecific-p (offset backend)))
+                   (call-next-method)
+                   (offset backend))))
 
 (defmethod seek-form :around ((backend io-backend) offset)
   (let ((current (offset backend)))
@@ -641,6 +641,8 @@
   (let ((value (gensym "VALUE")))
     `(let ((relative-offset ,(index-form backend T))
            (,value ,(default-value type)))
+       (declare (ignorable relative-offset))
+       (declare (type index relative-offset))
        ,(apply #'%slot-macrolet type value
                (loop for slot in (slots type)
                      for align = (seek-form backend (offset slot))
@@ -654,6 +656,8 @@
 (defmethod write-form ((backend io-backend) (type io-structure) value-variable)
   (let ((value (gensym "VALUE")))
     `(let ((relative-offset ,(index-form backend T)))
+       (declare (ignorable relative-offset))
+       (declare (type index relative-offset))
        ,(apply #'%slot-macrolet type value-variable
                (loop for slot in (slots type)
                      for align = (seek-form backend (offset slot))
