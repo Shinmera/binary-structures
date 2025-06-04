@@ -40,9 +40,19 @@
 (defmethod call-write-form ((backend io-stream) (type io-type) value-variable)
   `(,(intern* 'write- (type-of backend) '- (lisp-type type)) ,value-variable stream))
 
+(declaim (inline read-sbyte write-sbyte))
+(defun read-sbyte (stream)
+  (let ((byte (read-byte stream)))
+    (logior byte (- (mask-field (byte 1 7) byte)))))
+
+(defun write-sbyte (value stream)
+  (write-byte (logand #xFF value) stream))
+
 (defmethod read-form ((backend io-stream) (type io-integer))
   `(,(if (= 1 (octet-size type))
-         'read-byte
+         (if (signed-p type)
+             'read-sbyte
+             'read-byte)
          (find-symbol* 'nibbles 'read- 
                        (if (signed-p type) 'sb 'ub)
                        (* 8 (octet-size type))
@@ -53,7 +63,9 @@
 
 (defmethod write-form ((backend io-stream) (type io-integer) value-variable)
   `(,(if (= 1 (octet-size type))
-         'write-byte
+         (if (signed-p type)
+             'write-sbyte
+             'write-byte)
          (find-symbol* 'nibbles 'write- 
                        (if (signed-p type) 'sb 'ub)
                        (* 8 (octet-size type))
