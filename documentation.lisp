@@ -423,6 +423,57 @@ See NUMERIC-TYPE (type)")
 
 See IO-INTEGER (type)")
 
+  (type io-boolean
+    "Type class for boolean IO-TYPEs.
+
+This is a derivation of IO-INTEGER that performs a value conversion to
+a boolean (NIL/T). All the other arguments are the same as for an
+integer type.
+
+This type parses from the representation
+
+  (BOOLEAN [OCTET-SIZE] [:SIGNED/:UNSIGNED] [ORDER])
+
+The following shorthand is also defined:
+
+  BOOLEAN
+
+See IO-INTEGER (type)")
+
+  (type io-timestamp
+    "Type class for timestamp IO-TYPEs.
+
+This is a derivation of IO-INTEGER that performs value conversion to a
+universal-time timestamp. In addition to the arguments that exist for
+IO-INTEGERs, this also accepts the arguments EPOCH and RESOLUTION,
+where the EPOCH can be one of:
+
+  :UNIVERSAL  --- 0:0:0 1.1.1900 UTC
+  :UNIX       --- 0:0:0 1.1.1970 UTC
+  :IBM-PC     --- 0:0:0 1.1.1980 UTC
+  :Y2K        --- 0:0:0 1.1.2000 UTC
+  or an arbitrary integer that is used as the offset.
+
+The RESOLUTION is a multiplier used to create sub-second precision
+timestamps. For instance to get millisecond precision, the RESOLUTION
+would be set to 1000, for nanosecond precision to 1000000000, etc.
+
+This type parses from the representation
+
+  (TIME [:EPOCH EPOCH] [:RESOLUTION RESOLUTION]
+        [:SIZE OCTET-SIZE]
+        [:SIGNEDNESS :SIGNED/:UNSIGNED]
+        [:ORDER :LITTLE-ENDIAN/:BIG-ENDIAN])
+
+The following shorthands are also defined:
+
+  [UNIX/UNIVERSAL] -TIME- [S/U] [32/64]
+
+Where UNIX-TIME-U32 designates an \"unsigned 32-bit timestamp in
+little-endian using the unix epoch\".
+
+See IO-INTEGER (type)")
+
   (type io-float
     "Type class for floating point IO-TYPEs.
 
