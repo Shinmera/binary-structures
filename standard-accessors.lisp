@@ -9,12 +9,13 @@
        ,(read-defun backend type name)
        ,(write-defun backend type `(setf ,name)))))
 
-(defun try-compile (form)
-  (let* ((*standard-output* (make-broadcast-stream))
-         (*error-output* *standard-output*)
-         (*debug-io* *standard-output*))
-    (handler-case (not (nth-value 2 (compile NIL `(lambda () ,form))))
-      ((or error warning) () NIL))))
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (defun try-compile (form)
+    (let* ((*standard-output* (make-broadcast-stream))
+           (*error-output* *standard-output*)
+           (*debug-io* *standard-output*))
+      (handler-case (not (nth-value 2 (compile NIL `(lambda () ,form))))
+        ((or error warning) () NIL)))))
 
 (defmacro define-all-io-accessors ()
   `(progn
