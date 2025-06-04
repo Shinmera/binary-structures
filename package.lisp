@@ -56,6 +56,9 @@
    #:io-integer
    #:signed-p
    #:io-boolean
+   #:io-timestamp
+   #:epoch
+   #:resolution
    #:io-float
    #:io-vector
    #:element-type

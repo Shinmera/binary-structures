@@ -38,3 +38,8 @@
   -string)
 
 (define-io-type (io-boolean boolean))
+
+(define-io-types io-timestamp
+  ((unix :epoch :unix) (universal :epoch :universal))
+  -time
+  ((32 :octet-size 4) (64 :octet-size 8)))

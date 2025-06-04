@@ -289,6 +289,43 @@
 (defmethod write-form :around (backend (type io-boolean) value-variable)
   (call-next-method backend type `(if ,value-variable 1 0)))
 
+(defclass io-timestamp (io-integer)
+  ((epoch :initform :unix :initarg :epoch :accessor epoch)
+   (resolution :initform 1 :initarg :resolution :accessor resolution)
+   (octet-size :initform 8)
+   (signed-p :initform NIL)))
+
+(defmethod default-value ((type io-timestamp))
+  0)
+
+(define-io-type-parser time (&key (epoch :unix) (resolution 1) (size 8) (signedness) (order :little-endian))
+  (make-instance 'io-timestamp :epoch epoch
+                               :resolution resolution
+                               :octet-size size
+                               :signed-p (ecase signedness
+                                           ((:signed T) T)
+                                           ((:unsigned NIL) NIL))
+                               :order order))
+
+(defun epoch-universal-time-offset (epoch)
+  (etypecase epoch
+    ((member :universal 1900) (encode-universal-time 0 0 0 1 1 1900 0))
+    ((member :unix 1970) (encode-universal-time 0 0 0 1 1 1970 0))
+    ((member :ibm-pc 1980) (encode-universal-time 0 0 0 1 1 1980 0))
+    ((member :y2k 2000) (encode-universal-time 0 0 0 1 1 2000 0))
+    (integer epoch)))
+
+(defmethod read-form :around (backend (type io-timestamp))
+  `(+ (/ ,(call-next-method)
+         ,(resolution type))
+      ,(epoch-universal-time-offset (epoch type))))
+
+(defmethod write-form :around (backend (type io-timestamp) value-variable)
+  (call-next-method backend type `(round
+                                   (* (- ,value-variable
+                                         ,(epoch-universal-time-offset (epoch type)))
+                                      ,(resolution type)))))
+
 (defclass io-float (numeric-type)
   ())
 
