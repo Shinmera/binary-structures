@@ -69,9 +69,19 @@
   `(setf index (,(intern* 'write- (type-of backend) '- (lisp-type type))
                 ,value-variable vector index end)))
 
+(declaim (inline sb-aref (setf sb-aref)))
+(defun sb-aref (array index)
+  (let ((byte (aref array index)))
+    (logior byte (- (mask-field (byte 1 7) byte)))))
+
+(defun (setf sb-aref) (value array index)
+  (setf (aref array index) (logand #xFF value)))
+
 (defmethod read-form ((backend io-octet-vector) (type io-integer))
   `(prog1 (,(if (= 1 (octet-size type))
-                'aref
+                (if (signed-p type)
+                    'sb-aref
+                    'aref)
                 (find-symbol* 'nibbles 
                               (if (signed-p type) 'sb 'ub)
                               (* 8 (octet-size type))
@@ -85,7 +95,9 @@
 (defmethod write-form ((backend io-octet-vector) (type io-integer) value-variable)
   `(progn
      (setf (,(if (= 1 (octet-size type))
-                 'aref
+                 (if (signed-p type)
+                     'sb-aref
+                     'aref)
                  (find-symbol* 'nibbles
                                (if (signed-p type) 'sb 'ub)
                                (* 8 (octet-size type))
