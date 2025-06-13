@@ -477,7 +477,7 @@
 
 (defmethod octet-size-form ((type io-string) value-variable)
   `(+ (babel:string-size-in-octets ,value-variable :encoding ,(encoding type))
-      ,(if (symbolp (element-count type)) (octet-size-form (element-count type) value-variable))
+      ,(if (symbolp (element-count type)) (octet-size-form (element-count type) value-variable) 0)
       ,(if (null-terminated-p type) 1 0)))
 
 (defmethod initargs append ((type io-string))
