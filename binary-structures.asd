@@ -4,9 +4,9 @@
   :author "Yukari Hafner <shinmera@tymoon.eu>"
   :maintainer "Yukari Hafner <shinmera@tymoon.eu>"
   :description "A library for reading, writing, and representing structures from binary representations"
-  :homepage "https://shinmera.github.io/binary-structures/"
-  :bug-tracker "https://github.com/shinmera/binary-structures/issues"
-  :source-control (:git "https://github.com/shinmera/binary-structures.git")
+  :homepage "https://shinmera.com/docs/binary-structures/"
+  :bug-tracker "https://shinmera.com/project/binary-structures/issues"
+  :source-control (:git "https://shinmera.com/project/binary-structures.git")
   :serial T
   :components ((:file "package")
                (:file "toolkit")
